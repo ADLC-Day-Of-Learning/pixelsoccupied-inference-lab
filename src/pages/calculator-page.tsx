@@ -17,6 +17,7 @@ import {
   calculateKvCapacity,
   calculateMaxConcurrency,
   evaluateMemoryFit,
+  calculateMemoryBreakdown,
   MODEL_PRESETS,
   GPU_PRESETS,
   BYTES_PER_PARAM,
@@ -157,6 +158,54 @@ export function CalculatorPage() {
     totalGpuMemoryBytes,
     overheadBytes,
   })
+
+  // 7. GPU memory breakdown for stacked bar
+  const memoryBreakdown = calculateMemoryBreakdown({
+    parameters: rawParams,
+    precision: weightPrecision,
+    totalGpuMemoryBytes,
+    overheadBytes,
+  })
+
+  const formatGb = (gb: number): string => {
+    const rounded = Number(gb.toFixed(1))
+    return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
+  }
+
+  const shortfallLabel = `${formatGb(memoryBreakdown.overflowGb)} GB over`
+
+  const memoryTextAlternative = memoryBreakdown.overflow
+    ? `GPU memory usage: weights require ${formatGb(memoryBreakdown.weightsGb)} GB and runtime overhead requires ${formatGb(memoryBreakdown.overheadGb)} GB, exceeding total GPU memory of ${formatGb(memoryBreakdown.totalGpuMemoryGb)} GB by ${shortfallLabel}.`
+    : `GPU memory usage: ${formatGb(memoryBreakdown.weightsGb)} GB weights (${memoryBreakdown.weightsPercent.toFixed(1)}%), ${formatGb(memoryBreakdown.overheadGb)} GB runtime overhead (${memoryBreakdown.overheadPercent.toFixed(1)}%), and ${formatGb(memoryBreakdown.freeKvGb)} GB free for KV cache (${memoryBreakdown.freeKvPercent.toFixed(1)}%) out of ${formatGb(memoryBreakdown.totalGpuMemoryGb)} GB total GPU memory.`
+
+  // Calculate segment widths for the stacked bar
+  let barWeightsPercent = 0
+  let barOverheadPercent = 0
+  let barFreeKvPercent = 0
+  let barOverflowPercent = 0
+
+  if (!memoryBreakdown.overflow) {
+    barWeightsPercent = memoryBreakdown.weightsPercent
+    barOverheadPercent = memoryBreakdown.overheadPercent
+    barFreeKvPercent = memoryBreakdown.freeKvPercent
+  } else {
+    const totalNeededGb = memoryBreakdown.totalNeededGb
+    if (totalNeededGb > 0) {
+      barOverflowPercent = (memoryBreakdown.overflowGb / totalNeededGb) * 100
+      if (memoryBreakdown.weightsGb <= memoryBreakdown.totalGpuMemoryGb) {
+        barWeightsPercent = (memoryBreakdown.weightsGb / totalNeededGb) * 100
+        barOverheadPercent =
+          ((memoryBreakdown.totalGpuMemoryGb - memoryBreakdown.weightsGb) /
+            totalNeededGb) *
+          100
+      } else {
+        const capacityShare = 100 - barOverflowPercent
+        barWeightsPercent =
+          (memoryBreakdown.weightsGb / totalNeededGb) * capacityShare
+        barOverheadPercent = Math.max(0, capacityShare - barWeightsPercent)
+      }
+    }
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -439,6 +488,174 @@ export function CalculatorPage() {
               </AlertDescription>
             </Alert>
           )}
+
+          {/* GPU Memory Breakdown Stacked Bar Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Server className="size-4" />
+                  GPU Memory Allocation
+                </CardTitle>
+                <Badge
+                  variant={memoryBreakdown.overflow ? "destructive" : "outline"}
+                  className="text-xs"
+                >
+                  {memoryBreakdown.overflow
+                    ? shortfallLabel
+                    : `${formatGb(memoryBreakdown.totalGpuMemoryGb)} GB total`}
+                </Badge>
+              </div>
+              <CardDescription>
+                Visual allocation of weights, runtime overhead, and KV cache against total GPU memory.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Stacked Bar with accessible text alternative */}
+              <div
+                role="img"
+                aria-label={memoryTextAlternative}
+                className="space-y-1.5"
+              >
+                <span className="sr-only">{memoryTextAlternative}</span>
+
+                <div className="flex h-8 w-full overflow-hidden rounded-md border border-border bg-muted/40 text-xs select-none">
+                  {/* Weights segment */}
+                  {barWeightsPercent > 0 && (
+                    <div
+                      style={{ width: `${barWeightsPercent}%` }}
+                      className="flex items-center justify-center bg-blue-600 text-white font-medium transition-all dark:bg-blue-500"
+                      title={`Weights: ${formatGb(memoryBreakdown.weightsGb)} GB`}
+                    >
+                      {barWeightsPercent >= 12 && (
+                        <span className="truncate px-1">
+                          {formatGb(memoryBreakdown.weightsGb)} GB
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Runtime overhead segment */}
+                  {barOverheadPercent > 0 && (
+                    <div
+                      style={{ width: `${barOverheadPercent}%` }}
+                      className="flex items-center justify-center bg-amber-500 text-zinc-950 font-medium transition-all dark:bg-amber-400"
+                      title={`Runtime Overhead: ${formatGb(memoryBreakdown.overheadGb)} GB`}
+                    >
+                      {barOverheadPercent >= 10 && (
+                        <span className="truncate px-1">
+                          {formatGb(memoryBreakdown.overheadGb)} GB
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* KV cache (free) segment - when it fits */}
+                  {!memoryBreakdown.overflow && barFreeKvPercent > 0 && (
+                    <div
+                      style={{ width: `${barFreeKvPercent}%` }}
+                      className="flex items-center justify-center bg-emerald-600 text-white font-medium transition-all dark:bg-emerald-500"
+                      title={`KV Cache (free): ${formatGb(memoryBreakdown.freeKvGb)} GB`}
+                    >
+                      {barFreeKvPercent >= 10 && (
+                        <span className="truncate px-1">
+                          {formatGb(memoryBreakdown.freeKvGb)} GB
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Overflow shortfall segment - in destructive color */}
+                  {memoryBreakdown.overflow && barOverflowPercent > 0 && (
+                    <div
+                      style={{ width: `${barOverflowPercent}%` }}
+                      className="flex items-center justify-center bg-destructive text-destructive-foreground font-semibold transition-all"
+                      title={`Shortfall: ${shortfallLabel}`}
+                    >
+                      <span className="truncate px-1.5">{shortfallLabel}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Legend with GB values */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                <div className="inline-flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-blue-600 dark:bg-blue-500" />
+                  <span>
+                    Weights:{" "}
+                    <strong className="text-foreground font-semibold">
+                      {formatGb(memoryBreakdown.weightsGb)} GB
+                    </strong>
+                  </span>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-full bg-amber-500 dark:bg-amber-400" />
+                  <span>
+                    Runtime Overhead:{" "}
+                    <strong className="text-foreground font-semibold">
+                      {formatGb(memoryBreakdown.overheadGb)} GB
+                    </strong>
+                  </span>
+                </div>
+
+                {!memoryBreakdown.overflow ? (
+                  <div className="inline-flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-full bg-emerald-600 dark:bg-emerald-500" />
+                    <span>
+                      KV Cache (free):{" "}
+                      <strong className="text-foreground font-semibold">
+                        {formatGb(memoryBreakdown.freeKvGb)} GB
+                      </strong>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-full bg-destructive" />
+                    <span>
+                      Shortfall:{" "}
+                      <strong className="text-destructive font-semibold">
+                        {shortfallLabel}
+                      </strong>
+                    </span>
+                  </div>
+                )}
+
+                <div className="ml-auto inline-flex items-center text-xs">
+                  <span>
+                    Total GPU Memory:{" "}
+                    <strong className="text-foreground font-semibold">
+                      {formatGb(memoryBreakdown.totalGpuMemoryGb)} GB
+                    </strong>{" "}
+                    ({gpuCount} × {gpuMemoryGb} GB)
+                  </span>
+                </div>
+              </div>
+
+              {/* Formula display following AGENTS.md rule */}
+              <div className="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">
+                  Formula:
+                </div>
+                {memoryBreakdown.overflow ? (
+                  <>
+                    <div>shortfall = (weight_memory + runtime_overhead) − total_gpu_memory</div>
+                    <div className="text-foreground mt-1 text-[11px]">
+                      ({formatGb(memoryBreakdown.weightsGb)} GB + {formatGb(memoryBreakdown.overheadGb)} GB) − {formatGb(memoryBreakdown.totalGpuMemoryGb)} GB = {shortfallLabel}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>total_gpu_memory = weight_memory + runtime_overhead + free_kv</div>
+                    <div className="text-foreground mt-1 text-[11px]">
+                      {formatGb(memoryBreakdown.weightsGb)} GB + {formatGb(memoryBreakdown.overheadGb)} GB + {formatGb(memoryBreakdown.freeKvGb)} GB = {formatGb(memoryBreakdown.totalGpuMemoryGb)} GB
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Output Cards Grid */}
           <div className="grid gap-4 sm:grid-cols-2">
