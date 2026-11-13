@@ -338,8 +338,11 @@ describe("CalculatorPage stacked GPU memory bar", () => {
   it("renders the horizontal stacked bar with weights, overhead, and free KV cache when fitting", () => {
     render(<CalculatorPage />)
 
-    // Check card title
-    expect(screen.getByText("GPU Memory Allocation")).toBeInTheDocument()
+    // Check card title and decorative icon
+    const cardTitle = screen.getByText("GPU Memory Allocation")
+    expect(cardTitle).toBeInTheDocument()
+    const icon = cardTitle.querySelector("svg")
+    expect(icon).toHaveAttribute("aria-hidden", "true")
 
     // Default: Llama-3-8B FP16 (16 GB) on 1x A100 (80 GB), 8 GB overhead -> 56 GB free KV
     expect(screen.getByText(/^Weights:/i).closest("div")).toHaveTextContent(
@@ -392,6 +395,10 @@ describe("CalculatorPage stacked GPU memory bar", () => {
     const destructiveSegment = accessibleBar.querySelector(".bg-destructive")
     expect(destructiveSegment).toBeInTheDocument()
     expect(destructiveSegment).toHaveTextContent("68 GB over")
+
+    // The weights segment inside the bar renders fitted capacity (80 GB), not unpartitioned total (140 GB)
+    const weightsSegment = accessibleBar.querySelector(".bg-blue-600, .bg-blue-500")
+    expect(weightsSegment).toHaveTextContent("80 GB")
 
     // Now increase GPU count to 2 (160 GB total: 140 GB weights + 16 GB overhead = 156 GB -> 4 GB free KV)
     const btn2 = screen.getByRole("radio", { name: "2" })

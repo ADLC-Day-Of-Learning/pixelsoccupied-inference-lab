@@ -561,7 +561,7 @@ export function CalculatorPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Server className="size-4" />
+                  <Server className="size-4" aria-hidden="true" />
                   GPU Memory Allocation
                 </CardTitle>
                 <Badge
@@ -596,11 +596,11 @@ export function CalculatorPage() {
                           key={segment.id}
                           style={{ width: `${segment.percentage}%` }}
                           className="flex items-center justify-center bg-blue-600 text-white font-medium transition-all dark:bg-blue-500"
-                          title={`Weights: ${formatGb(memoryBreakdown.weightsGb)} GB`}
+                          title={`Weights: ${formatGb(segment.gb)} GB`}
                         >
                           {segment.percentage >= 12 && (
                             <span className="truncate px-1">
-                              {formatGb(memoryBreakdown.weightsGb)} GB
+                              {formatGb(segment.gb)} GB
                             </span>
                           )}
                         </div>
@@ -613,11 +613,11 @@ export function CalculatorPage() {
                           key={segment.id}
                           style={{ width: `${segment.percentage}%` }}
                           className="flex items-center justify-center bg-amber-500 text-zinc-950 font-medium transition-all dark:bg-amber-400"
-                          title={`Runtime Overhead: ${formatGb(memoryBreakdown.overheadGb)} GB`}
+                          title={`Runtime Overhead: ${formatGb(segment.gb)} GB`}
                         >
                           {segment.percentage >= 10 && (
                             <span className="truncate px-1">
-                              {formatGb(memoryBreakdown.overheadGb)} GB
+                              {formatGb(segment.gb)} GB
                             </span>
                           )}
                         </div>
@@ -630,11 +630,11 @@ export function CalculatorPage() {
                           key={segment.id}
                           style={{ width: `${segment.percentage}%` }}
                           className="flex items-center justify-center bg-emerald-600 text-white font-medium transition-all dark:bg-emerald-500"
-                          title={`KV Cache (free): ${formatGb(memoryBreakdown.freeKvGb)} GB`}
+                          title={`KV Cache (free): ${formatGb(segment.gb)} GB`}
                         >
                           {segment.percentage >= 10 && (
                             <span className="truncate px-1">
-                              {formatGb(memoryBreakdown.freeKvGb)} GB
+                              {formatGb(segment.gb)} GB
                             </span>
                           )}
                         </div>
