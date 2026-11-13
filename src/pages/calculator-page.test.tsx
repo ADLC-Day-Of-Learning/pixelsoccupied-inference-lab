@@ -2,11 +2,28 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, it, expect, afterEach } from "vitest"
+import { afterEach, beforeAll, describe, it, expect } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
+import { App } from "@/App"
 
 afterEach(() => {
   cleanup()
+})
+
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  })
 })
 
 describe("CalculatorPage preset dropdowns", () => {
@@ -57,10 +74,18 @@ describe("CalculatorPage preset dropdowns", () => {
   })
 
   it("updates dropdown triggers to Custom labels when input values are manually edited", async () => {
+    const user = userEvent.setup()
     render(<CalculatorPage />)
 
     const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
     const gpuTrigger = screen.getByRole("combobox", { name: /gpu preset/i })
+
+    // Switch model to Custom Dimensions so architecture inputs are displayed
+    await user.click(modelTrigger)
+    const customModelOption = await screen.findByRole("option", {
+      name: /custom dimensions/i,
+    })
+    await user.click(customModelOption)
 
     // Edit model parameter input
     const paramsInput = screen.getByLabelText(/parameters \(billions\)/i)
@@ -73,6 +98,70 @@ describe("CalculatorPage preset dropdowns", () => {
     fireEvent.change(gpuMemInput, { target: { value: "24" } })
     expect(gpuTrigger).toHaveTextContent("Custom Memory")
     expect(gpuTrigger).not.toHaveTextContent("custom▼")
+  })
+})
+
+describe("Model configuration card architecture fields", () => {
+  it("shows a compact read-only summary for presets and editable inputs for custom", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+
+    // Default preset (Llama-3-8B): read-only summary shown, inputs and preset badge absent
+    expect(
+      screen.getByText(/8B params · 32 layers · 8 KV heads · head dim 128/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/parameters \(billions\)/i)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^layers$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/kv heads/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/head dimension/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
+
+    // Switch to another preset (Llama-3-70B): summary updates, inputs still hidden
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    expect(
+      screen.getByText(/70B params · 80 layers · 8 KV heads · head dim 128/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/parameters \(billions\)/i)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
+
+    // Switch to Custom Dimensions: summary disappears, editable inputs appear
+    await user.click(modelTrigger)
+    const customOption = await screen.findByRole("option", {
+      name: /custom dimensions/i,
+    })
+    await user.click(customOption)
+
+    expect(screen.queryByText(/params ·.*layers/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/parameters \(billions\)/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^layers$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/kv heads/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/head dimension/i)).toBeInTheDocument()
+
+    // Switch back to preset: inputs are hidden again, summary reappears
+    await user.click(modelTrigger)
+    const model8bOption = await screen.findByRole("option", {
+      name: /llama-3-8b/i,
+    })
+    await user.click(model8bOption)
+
+    expect(
+      screen.getByText(/8B params · 32 layers · 8 KV heads · head dim 128/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/parameters \(billions\)/i)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
   })
 })
 
@@ -128,8 +217,17 @@ describe("CalculatorPage hero result panel", () => {
     expect(within(heroPanel).getByText("0")).toBeInTheDocument()
   })
 
-  it("displays shortfall in GB when model exceeds available memory after overhead", () => {
+  it("displays shortfall in GB when model exceeds available memory after overhead", async () => {
+    const user = userEvent.setup()
     render(<CalculatorPage />)
+
+    // Switch to Custom Dimensions so architecture inputs are displayed
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const customOption = await screen.findByRole("option", {
+      name: /custom dimensions/i,
+    })
+    await user.click(customOption)
 
     // Set parameters to 37.5B FP16 (75 GB weights) on 1x 80 GB GPU with 8 GB overhead (72 GB available -> 3 GB shortfall)
     const paramsInput = screen.getByLabelText(/parameters \(billions\)/i)
@@ -170,5 +268,33 @@ describe("CalculatorPage hero result panel", () => {
     expect(within(heroPanel).queryByText("Does Not Fit")).not.toBeInTheDocument()
     expect(within(heroPanel).queryByText(/shortfall/i)).not.toBeInTheDocument()
     expect(within(heroPanel).getByText("Max Concurrent Requests")).toBeInTheDocument()
+  })
+})
+
+describe("Calculator disclaimers and unit notes", () => {
+  it("removes redundant notices and renders single consolidated footer line in CalculatorPage", () => {
+    render(<CalculatorPage />)
+
+    // Top alert banner should be absent
+    expect(screen.queryByText(/estimates, not benchmarks/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/1 GB = 1e9 bytes/i)).not.toBeInTheDocument()
+
+    // Single consolidated disclaimer should appear under results
+    expect(
+      screen.getByText("Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.")
+    ).toBeInTheDocument()
+  })
+
+  it("removes redundant notices across the app shell", () => {
+    render(<App />)
+
+    // Top alert banner and header/sidebar badges/notes should be absent
+    expect(screen.queryByText(/estimates, not benchmarks/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/1 GB = 1e9 bytes/i)).not.toBeInTheDocument()
+
+    // Single consolidated disclaimer should appear under results
+    expect(
+      screen.getByText("Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.")
+    ).toBeInTheDocument()
   })
 })
