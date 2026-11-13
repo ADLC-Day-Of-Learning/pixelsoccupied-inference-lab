@@ -2,11 +2,28 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, describe, it, expect } from "vitest"
+import { afterEach, beforeAll, describe, it, expect } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
+import { App } from "@/App"
 
 afterEach(() => {
   cleanup()
+})
+
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  })
 })
 
 describe("CalculatorPage preset dropdowns", () => {
@@ -81,6 +98,59 @@ describe("CalculatorPage preset dropdowns", () => {
     fireEvent.change(gpuMemInput, { target: { value: "24" } })
     expect(gpuTrigger).toHaveTextContent("Custom Memory")
     expect(gpuTrigger).not.toHaveTextContent("custom▼")
+  })
+})
+
+describe("CalculatorPage GPU count segmented control", () => {
+  it("renders 1, 2, 4, 8 options with 1 selected by default and updates selection on click", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const btn1 = screen.getByRole("radio", { name: "1" })
+    const btn2 = screen.getByRole("radio", { name: "2" })
+    const btn4 = screen.getByRole("radio", { name: "4" })
+    const btn8 = screen.getByRole("radio", { name: "8" })
+
+    expect(btn1).toHaveAttribute("data-state", "on")
+    expect(btn1).toHaveAttribute("aria-checked", "true")
+    expect(btn2).toHaveAttribute("data-state", "off")
+    expect(btn4).toHaveAttribute("data-state", "off")
+    expect(btn8).toHaveAttribute("data-state", "off")
+
+    // Click 4 GPUs
+    await user.click(btn4)
+    expect(btn4).toHaveAttribute("data-state", "on")
+    expect(btn4).toHaveAttribute("aria-checked", "true")
+    expect(btn1).toHaveAttribute("data-state", "off")
+
+    // Clicking already selected 4 does not deselect it
+    await user.click(btn4)
+    expect(btn4).toHaveAttribute("data-state", "on")
+
+    // Verify formula card updated for 4 GPUs (e.g. "80 GB × 4")
+    expect(screen.getByText(/80 GB × 4/i)).toBeInTheDocument()
+  })
+
+  it("supports keyboard navigation between options and selection with Space or Enter", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const btn1 = screen.getByRole("radio", { name: "1" })
+    const btn2 = screen.getByRole("radio", { name: "2" })
+
+    // Focus the initial selected button
+    btn1.focus()
+    expect(btn1).toHaveFocus()
+
+    // Navigate to next option with ArrowRight
+    await user.keyboard("{ArrowRight}")
+    expect(btn2).toHaveFocus()
+
+    // Select with Space
+    await user.keyboard(" ")
+    expect(btn2).toHaveAttribute("data-state", "on")
+    expect(btn1).toHaveAttribute("data-state", "off")
+    expect(screen.getByText(/80 GB × 2/i)).toBeInTheDocument()
   })
 })
 
@@ -234,5 +304,33 @@ describe("Model configuration card architecture fields", () => {
       screen.queryByLabelText(/parameters \(billions\)/i)
     ).not.toBeInTheDocument()
     expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
+  })
+})
+
+describe("Calculator disclaimers and unit notes", () => {
+  it("removes redundant notices and renders single consolidated footer line in CalculatorPage", () => {
+    render(<CalculatorPage />)
+
+    // Top alert banner should be absent
+    expect(screen.queryByText(/estimates, not benchmarks/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/1 GB = 1e9 bytes/i)).not.toBeInTheDocument()
+
+    // Single consolidated disclaimer should appear under results
+    expect(
+      screen.getByText("Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.")
+    ).toBeInTheDocument()
+  })
+
+  it("removes redundant notices across the app shell", () => {
+    render(<App />)
+
+    // Top alert banner and header/sidebar badges/notes should be absent
+    expect(screen.queryByText(/estimates, not benchmarks/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/1 GB = 1e9 bytes/i)).not.toBeInTheDocument()
+
+    // Single consolidated disclaimer should appear under results
+    expect(
+      screen.getByText("Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.")
+    ).toBeInTheDocument()
   })
 })

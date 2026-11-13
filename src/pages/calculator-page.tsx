@@ -5,7 +5,6 @@ import {
   Cpu,
   Database,
   HardDrive,
-  Info,
   Server,
   Users,
 } from "lucide-react"
@@ -45,10 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 const MODEL_PRESET_ITEMS: Record<string, string> = {
   "llama-3-8b": "Llama-3-8B (8B, 32L, 8KV, 128D)",
@@ -207,19 +203,6 @@ export function CalculatorPage() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
-      {/* Estimation disclaimer note */}
-      <Alert className="border-border bg-muted/30">
-        <Info className="size-4 text-muted-foreground" />
-        <AlertTitle className="text-sm font-medium">
-          Estimates, not benchmarks
-        </AlertTitle>
-        <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
-          Results are rough ballparks. Real numbers depend on runtime framework
-          overheads (vLLM, TensorRT-LLM), CUDA graph allocations, and kernel
-          workspaces. Memory uses decimal gigabytes (1 GB = 1e9 bytes).
-        </AlertDescription>
-      </Alert>
-
       {/* Main Grid: Inputs on Left/Top, Outputs on Right/Bottom */}
       <div className="grid gap-6 lg:grid-cols-12">
         {/* INPUTS SECTION */}
@@ -416,17 +399,35 @@ export function CalculatorPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="gpu-count">Number of GPUs (1–8)</Label>
-                  <Input
+                  <Label id="gpu-count-label" htmlFor="gpu-count">
+                    Number of GPUs
+                  </Label>
+                  <ToggleGroup
                     id="gpu-count"
-                    type="number"
-                    min={1}
-                    max={8}
-                    value={gpuCount}
-                    onChange={(e) =>
-                      handleGpuCountChange(parseInt(e.target.value, 10))
-                    }
-                  />
+                    aria-labelledby="gpu-count-label"
+                    type="single"
+                    value={String(gpuCount)}
+                    onValueChange={(val: string) => {
+                      if (val) {
+                        handleGpuCountChange(parseInt(val, 10))
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <ToggleGroupItem value="1" className="flex-1">
+                      1
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="2" className="flex-1">
+                      2
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="4" className="flex-1">
+                      4
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="8" className="flex-1">
+                      8
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
               </div>
 
@@ -650,6 +651,10 @@ export function CalculatorPage() {
               </CardContent>
             </Card>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.
+          </p>
         </div>
       </div>
     </div>

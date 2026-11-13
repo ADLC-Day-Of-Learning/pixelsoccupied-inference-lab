@@ -1,7 +1,6 @@
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Badge } from "@/components/ui/badge"
 
 interface SiteHeaderProps {
   title: string
@@ -25,9 +24,6 @@ export function SiteHeader({ title, subtitle }: SiteHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <Badge variant="outline" className="hidden text-xs md:inline-flex">
-          1 GB = 1e9 bytes
-        </Badge>
         <ThemeToggle />
       </div>
     </header>
