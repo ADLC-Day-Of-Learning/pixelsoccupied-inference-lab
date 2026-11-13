@@ -76,8 +76,9 @@ describe("progress and level unlocking", () => {
     expect(isLevelUnlocked(updated, 2, mockLevels)).toBe(true)
     expect(isLevelUnlocked(updated, 3, mockLevels)).toBe(false)
 
-    // Complete Level 2
-    const updated2 = markLevelCompleted(updated, mockLevel2.id, mockLevels)
+    // Complete Level 2 using LevelDefinition object
+    const updated2 = markLevelCompleted(updated, mockLevel2, mockLevels)
+    expect(isLevelCompleted(updated2, mockLevel2, mockLevels)).toBe(true)
     expect(isLevelUnlocked(updated2, 3, mockLevels)).toBe(true)
   })
 

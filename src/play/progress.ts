@@ -62,15 +62,22 @@ export function saveProgress(state: ProgressState): void {
  */
 export function markLevelCompleted(
   state: ProgressState,
-  levelIdOrNumber: string | number,
+  levelOrNumber: LevelDefinition | string | number,
   levels: LevelDefinition[] = []
 ): ProgressState {
-  let resolvedId: string
-  if (typeof levelIdOrNumber === "number") {
-    const matched = levels.find((l) => l.number === levelIdOrNumber)
-    resolvedId = matched ? matched.id : `level-${levelIdOrNumber}`
+  let resolvedIdOrNumber: string | number
+  if (typeof levelOrNumber === "object" && levelOrNumber !== null) {
+    resolvedIdOrNumber = levelOrNumber.id
   } else {
-    resolvedId = levelIdOrNumber
+    resolvedIdOrNumber = levelOrNumber
+  }
+
+  let resolvedId: string
+  if (typeof resolvedIdOrNumber === "number") {
+    const matched = levels.find((l) => l.number === resolvedIdOrNumber)
+    resolvedId = matched ? matched.id : `level-${resolvedIdOrNumber}`
+  } else {
+    resolvedId = resolvedIdOrNumber
   }
 
   if (state.completedLevelIds.includes(resolvedId)) {
@@ -202,9 +209,9 @@ export function useProgress(levels: LevelDefinition[] = []) {
   const [state, setState] = React.useState<ProgressState>(() => loadProgress())
 
   const completeLevel = React.useCallback(
-    (levelIdOrNumber: string | number) => {
+    (levelOrNumber: LevelDefinition | string | number) => {
       setState((prev) => {
-        const next = markLevelCompleted(prev, levelIdOrNumber, levels)
+        const next = markLevelCompleted(prev, levelOrNumber, levels)
         saveProgress(next)
         return next
       })

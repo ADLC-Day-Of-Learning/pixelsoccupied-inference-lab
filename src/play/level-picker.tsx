@@ -1,5 +1,15 @@
 import { CheckCircle2, Lock, Play, RotateCcw } from "lucide-react"
-import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import type { LevelDefinition } from "./types"
 import { getLevelState } from "./progress"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -62,8 +72,8 @@ export function LevelPicker({
           </div>
           {completedCount > 0 && (
             <div className="flex justify-end pt-1">
-              <AlertDialogPrimitive.Root>
-                <AlertDialogPrimitive.Trigger
+              <AlertDialog>
+                <AlertDialogTrigger
                   render={
                     <Button
                       variant="ghost"
@@ -76,40 +86,35 @@ export function LevelPicker({
                     </Button>
                   }
                 />
-                <AlertDialogPrimitive.Portal>
-                  <AlertDialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/80 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-opacity duration-150" />
-                  <AlertDialogPrimitive.Popup className="fixed left-1/2 top-1/2 z-50 grid w-full max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg duration-200 rounded-lg">
-                    <div className="flex flex-col space-y-2 text-center sm:text-left">
-                      <AlertDialogPrimitive.Title className="text-lg font-semibold">
-                        Reset progress?
-                      </AlertDialogPrimitive.Title>
-                      <AlertDialogPrimitive.Description className="text-sm text-muted-foreground">
-                        This will permanently erase all completed level progress from this browser. This action cannot be undone.
-                      </AlertDialogPrimitive.Description>
-                    </div>
-                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
-                      <AlertDialogPrimitive.Close
-                        render={
-                          <Button variant="outline" size="sm">
-                            Cancel
-                          </Button>
-                        }
-                      />
-                      <AlertDialogPrimitive.Close
-                        render={
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={onResetProgress}
-                          >
-                            Confirm reset
-                          </Button>
-                        }
-                      />
-                    </div>
-                  </AlertDialogPrimitive.Popup>
-                </AlertDialogPrimitive.Portal>
-              </AlertDialogPrimitive.Root>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reset progress?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently erase all completed level progress from this browser. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      render={
+                        <Button variant="outline" size="sm">
+                          Cancel
+                        </Button>
+                      }
+                    />
+                    <AlertDialogAction
+                      render={
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={onResetProgress}
+                        >
+                          Confirm reset
+                        </Button>
+                      }
+                    />
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>
