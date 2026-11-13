@@ -148,6 +148,100 @@ describe("CalculatorPage GPU count segmented control", () => {
   })
 })
 
+describe("CalculatorPage context length presets", () => {
+  it("defaults to 4K and updates context length when selecting presets", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Verify radiogroup accessible name
+    expect(
+      screen.getByRole("radiogroup", { name: /context length/i })
+    ).toBeInTheDocument()
+
+    // Verify default selection is 4K (4096 tokens)
+    const preset4k = screen.getByRole("radio", { name: /4k/i })
+    expect(preset4k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/4,096 tokens\/request/i)).toBeInTheDocument()
+
+    // Numeric input should not be shown for presets
+    expect(
+      screen.queryByRole("spinbutton", { name: /context length/i })
+    ).not.toBeInTheDocument()
+
+    // Selecting 2K updates calculations
+    const preset2k = screen.getByRole("radio", { name: /\b2k\b/i })
+    await user.click(preset2k)
+    expect(preset2k).toHaveAttribute("data-state", "on")
+    expect(preset4k).toHaveAttribute("data-state", "off")
+    expect(screen.getByText(/2,048 tokens\/request/i)).toBeInTheDocument()
+
+    // Selecting 32K updates calculations
+    const preset32k = screen.getByRole("radio", { name: /32k/i })
+    await user.click(preset32k)
+    expect(preset32k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/32,768 tokens\/request/i)).toBeInTheDocument()
+
+    // Selecting 128K updates calculations
+    const preset128k = screen.getByRole("radio", { name: /128k/i })
+    await user.click(preset128k)
+    expect(preset128k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/131,072 tokens\/request/i)).toBeInTheDocument()
+
+    // Selecting 8K updates calculations
+    const preset8k = screen.getByRole("radio", { name: /\b8k\b/i })
+    await user.click(preset8k)
+    expect(preset8k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/8,192 tokens\/request/i)).toBeInTheDocument()
+  })
+
+  it("reveals numeric input when Custom is selected and validates non-positive values", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Select Custom option to reveal number input
+    const customToggle = screen.getByRole("radio", { name: /custom/i })
+    await user.click(customToggle)
+    expect(customToggle).toHaveAttribute("data-state", "on")
+
+    const customInput = screen.getByRole("spinbutton", {
+      name: /context length/i,
+    })
+    expect(customInput).toBeInTheDocument()
+    expect(customInput).toHaveValue(4096)
+
+    // Entering a valid custom number updates calculations
+    await user.clear(customInput)
+    await user.type(customInput, "16384")
+    expect(screen.getByText(/16,384 tokens\/request/i)).toBeInTheDocument()
+    expect(
+      screen.queryByText(/must be greater than 0/i)
+    ).not.toBeInTheDocument()
+
+    // Values <= 0 show inline error
+    await user.clear(customInput)
+    await user.type(customInput, "0")
+    expect(screen.getByText(/must be greater than 0/i)).toBeInTheDocument()
+    expect(customInput).toHaveAttribute("aria-invalid", "true")
+
+    // Negative values show inline error
+    await user.clear(customInput)
+    await user.type(customInput, "-100")
+    expect(screen.getByText(/must be greater than 0/i)).toBeInTheDocument()
+
+    // Clearing input shows inline error
+    await user.clear(customInput)
+    expect(screen.getByText(/must be greater than 0/i)).toBeInTheDocument()
+
+    // Recovering to a valid positive value clears inline error
+    await user.type(customInput, "8192")
+    expect(
+      screen.queryByText(/must be greater than 0/i)
+    ).not.toBeInTheDocument()
+    expect(customInput).toHaveAttribute("aria-invalid", "false")
+    expect(screen.getByText(/8,192 tokens\/request/i)).toBeInTheDocument()
+  })
+})
+
 describe("Model configuration card architecture fields", () => {
   it("shows a compact read-only summary for presets and editable inputs for custom", async () => {
     const user = userEvent.setup()
