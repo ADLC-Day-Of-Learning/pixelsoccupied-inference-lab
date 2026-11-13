@@ -7,6 +7,7 @@ import {
   calculateMaxConcurrency,
   evaluateMemoryFit,
   calculateMemoryShortfall,
+  calculateMemoryBreakdown,
   bytesToGb,
   bytesToKb,
   estimatePrefillTime,
@@ -204,6 +205,171 @@ describe("model formulas", () => {
       expect(bytesToGb(140e9)).toBe("140.0")
       expect(bytesToGb(140 * BYTES_IN_GB, 0)).toBe("140")
       expect(bytesToKb(131072, 2)).toBe("131.07")
+    })
+  })
+
+  describe("calculateMemoryBreakdown", () => {
+    it("calculates segment sizes for a model that fits within GPU memory (Llama-3-70B FP16 on 2x H100)", () => {
+      // 70B FP16 (140 GB weights) on 2x H100 (160 GB total), 10% overhead (16 GB)
+      const result = calculateMemoryBreakdown({
+        parameters: 70e9,
+        precision: "FP16",
+        totalGpuMemoryBytes: 160e9,
+        overheadBytes: 16e9,
+      })
+      expect(result.overflow).toBe(false)
+      expect(result.overflowGb).toBe(0)
+      expect(result.overflowBytes).toBe(0)
+      expect(result.weightsGb).toBe(140)
+      expect(result.weightsBytes).toBe(140e9)
+      expect(result.overheadGb).toBe(16)
+      expect(result.overheadBytes).toBe(16e9)
+      expect(result.freeKvGb).toBe(4) // 160 - 140 - 16 = 4 GB free
+      expect(result.freeKvBytes).toBe(4e9)
+      expect(result.totalGpuMemoryGb).toBe(160)
+      expect(result.weightsPercent).toBeCloseTo(87.5, 1)
+      expect(result.overheadPercent).toBeCloseTo(10, 1)
+      expect(result.freeKvPercent).toBeCloseTo(2.5, 1)
+      expect(result.overflowPercent).toBe(0)
+      expect(result.segments).toHaveLength(3)
+      expect(result.segments[0].id).toBe("weights")
+      expect(result.segments[1].id).toBe("overhead")
+      expect(result.segments[2].id).toBe("freeKv")
+    })
+
+    it("calculates overflow shortfall when weights and overhead exceed capacity (Llama-3-70B FP16 on 1x H100)", () => {
+      // 70B FP16 (140 GB weights) on 1x H100 (80 GB total), 10% overhead (8 GB)
+      const result = calculateMemoryBreakdown({
+        parameters: 70e9,
+        precision: "FP16",
+        totalGpuMemoryBytes: 80e9,
+        overheadBytes: 8e9,
+      })
+      expect(result.overflow).toBe(true)
+      expect(result.overflowGb).toBe(68) // 140 + 8 - 80 = 68 GB shortfall
+      expect(result.overflowBytes).toBe(68e9)
+      expect(result.weightsGb).toBe(140)
+      expect(result.overheadGb).toBe(8)
+      expect(result.freeKvGb).toBe(0)
+      expect(result.freeKvBytes).toBe(0)
+      expect(result.totalGpuMemoryGb).toBe(80)
+      expect(result.totalNeededGb).toBe(148)
+      expect(result.weightsPercent).toBeCloseTo((80 / 148) * 100, 2)
+      expect(result.overheadPercent).toBeCloseTo(0, 2)
+      expect(result.overflowPercent).toBeCloseTo((68 / 148) * 100, 2)
+      expect(result.segments).toHaveLength(3)
+      expect(result.segments[0].id).toBe("weights")
+      expect(result.segments[0].bytes).toBe(80e9)
+      expect(result.segments[0].gb).toBe(80)
+      expect(result.segments[0].percentage).toBeCloseTo((80 / 148) * 100, 2)
+      expect(result.segments[1].id).toBe("overhead")
+      expect(result.segments[1].bytes).toBe(0)
+      expect(result.segments[1].gb).toBe(0)
+      expect(result.segments[1].percentage).toBeCloseTo(0, 2)
+      expect(result.segments[2].id).toBe("overflow")
+      expect(result.segments[2].bytes).toBe(68e9)
+      expect(result.segments[2].gb).toBe(68)
+      expect(result.segments[2].percentage).toBeCloseTo((68 / 148) * 100, 2)
+
+      // Segments must form a clean partition summing to totalNeededBytes and 100%
+      const totalPercent = result.segments.reduce((acc, s) => acc + s.percentage, 0)
+      expect(totalPercent).toBeCloseTo(100, 1)
+      const totalBytes = result.segments.reduce((acc, s) => acc + s.bytes, 0)
+      expect(totalBytes).toBe(148e9)
+    })
+
+    it("calculates overflow shortfall with zero overhead (140 GB weights on 80 GB -> 60 GB over)", () => {
+      const result = calculateMemoryBreakdown({
+        weightMemoryBytes: 140e9,
+        totalGpuMemoryBytes: 80e9,
+        overheadBytes: 0,
+      })
+      expect(result.overflow).toBe(true)
+      expect(result.overflowGb).toBe(60) // 140 - 80 = 60 GB shortfall
+      expect(result.freeKvGb).toBe(0)
+      expect(result.weightsPercent).toBeCloseTo((80 / 140) * 100, 2)
+      expect(result.overheadPercent).toBe(0)
+      expect(result.overflowPercent).toBeCloseTo((60 / 140) * 100, 2)
+      const totalPercent = result.segments.reduce((acc, s) => acc + s.percentage, 0)
+      expect(totalPercent).toBeCloseTo(100, 1)
+      const totalBytes = result.segments.reduce((acc, s) => acc + s.bytes, 0)
+      expect(totalBytes).toBe(140e9)
+    })
+
+    it("calculates overflow when weights fit alone but weights + overhead exceed capacity", () => {
+      // 75 GB weights fits in 80 GB, but with 8 GB overhead needs 83 GB -> 3 GB over
+      const result = calculateMemoryBreakdown({
+        weightBytes: 75e9,
+        totalGpuMemoryBytes: 80e9,
+        overheadBytes: 8e9,
+      })
+      expect(result.overflow).toBe(true)
+      expect(result.overflowGb).toBe(3)
+      expect(result.freeKvGb).toBe(0)
+      expect(result.weightsPercent).toBeCloseTo((75 / 83) * 100, 2)
+      expect(result.overheadPercent).toBeCloseTo((5 / 83) * 100, 2)
+      expect(result.overflowPercent).toBeCloseTo((3 / 83) * 100, 2)
+      expect(result.segments[0].bytes).toBe(75e9)
+      expect(result.segments[1].bytes).toBe(5e9)
+      expect(result.segments[2].bytes).toBe(3e9)
+      const totalPercent = result.segments.reduce((acc, s) => acc + s.percentage, 0)
+      expect(totalPercent).toBeCloseTo(100, 1)
+      const totalBytes = result.segments.reduce((acc, s) => acc + s.bytes, 0)
+      expect(totalBytes).toBe(83e9)
+    })
+
+    it("returns 0 total GPU memory when gpuCount is explicitly 0", () => {
+      const result = calculateMemoryBreakdown({
+        gpuCount: 0,
+        gpuMemoryBytes: 80e9,
+        weightMemoryBytes: 16e9,
+      })
+      expect(result.totalGpuMemoryBytes).toBe(0)
+      expect(result.totalGpuMemoryGb).toBe(0)
+      expect(result.overflow).toBe(true)
+      expect(result.overflowGb).toBe(16)
+      expect(result.overflowPercent).toBe(100)
+      expect(result.weightsPercent).toBe(0)
+    })
+
+    it("calculates breakdown for Llama-3-8B FP16 on 1x A100 (80 GB)", () => {
+      // 8B FP16 = 16 GB weights, 8 GB overhead -> 56 GB free for KV cache
+      const result = calculateMemoryBreakdown({
+        parameters: 8e9,
+        precision: "FP16",
+        gpuMemoryBytes: 80e9,
+        gpuCount: 1,
+        overheadFraction: 0.1,
+      })
+      expect(result.overflow).toBe(false)
+      expect(result.overflowGb).toBe(0)
+      expect(result.weightsGb).toBe(16)
+      expect(result.overheadGb).toBe(8)
+      expect(result.freeKvGb).toBe(56)
+      expect(result.totalGpuMemoryGb).toBe(80)
+    })
+
+    it("supports positional argument overload", () => {
+      const fitResult = calculateMemoryBreakdown(160e9, 140e9, 16e9)
+      expect(fitResult.overflow).toBe(false)
+      expect(fitResult.freeKvGb).toBe(4)
+
+      const overflowResult = calculateMemoryBreakdown(80e9, 140e9, 8e9)
+      expect(overflowResult.overflow).toBe(true)
+      expect(overflowResult.overflowGb).toBe(68)
+      expect(overflowResult.freeKvGb).toBe(0)
+    })
+
+    it("handles zero or empty capacity gracefully", () => {
+      const zeroResult = calculateMemoryBreakdown({
+        totalGpuMemoryBytes: 0,
+        weightMemoryBytes: 0,
+        overheadBytes: 0,
+      })
+      expect(zeroResult.overflow).toBe(false)
+      expect(zeroResult.overflowGb).toBe(0)
+      expect(zeroResult.freeKvGb).toBe(0)
+      expect(zeroResult.weightsPercent).toBe(0)
     })
   })
 
