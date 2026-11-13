@@ -328,6 +328,222 @@ export function bytesToKb(bytes: number, decimals: number = 2): string {
   return (bytes / BYTES_IN_KB).toFixed(decimals)
 }
 
+export interface MemoryBreakdownParams {
+  parameters?: number
+  precision?: WeightPrecision
+  weightMemoryBytes?: number
+  weightBytes?: number
+  totalGpuMemoryBytes?: number
+  gpuMemoryBytes?: number
+  gpuCount?: number
+  overheadBytes?: number
+  overheadFraction?: number
+}
+
+export interface MemorySegment {
+  id: "weights" | "overhead" | "freeKv" | "overflow"
+  label: string
+  bytes: number
+  gb: number
+  percentage: number
+}
+
+export interface MemoryBreakdownResult {
+  weightsBytes: number
+  weightsGb: number
+  overheadBytes: number
+  overheadGb: number
+  freeKvBytes: number
+  freeKvGb: number
+  totalGpuMemoryBytes: number
+  totalGpuMemoryGb: number
+  totalNeededBytes: number
+  totalNeededGb: number
+  overflow: boolean
+  overflowBytes: number
+  overflowGb: number
+  weightsPercent: number
+  overheadPercent: number
+  freeKvPercent: number
+  overflowPercent: number
+  segments: MemorySegment[]
+}
+
+/**
+ * Calculates segment sizes for GPU memory breakdown:
+ * weights, runtime overhead, and free memory for KV cache (or overflow shortfall).
+ *
+ * All memory numbers are in decimal bytes and GB (1 GB = 1e9 bytes).
+ *
+ * When weights + overhead <= total GPU memory:
+ * - overflow = false, overflowGb = 0
+ * - freeKvBytes = totalGpuMemoryBytes - weightsBytes - overheadBytes
+ * - freeKvGb = freeKvBytes / 1e9
+ *
+ * When weights + overhead > total GPU memory:
+ * - overflow = true
+ * - overflowBytes = (weightsBytes + overheadBytes) - totalGpuMemoryBytes
+ * - overflowGb = overflowBytes / 1e9
+ * - freeKvBytes = 0, freeKvGb = 0
+ */
+export function calculateMemoryBreakdown(
+  params: MemoryBreakdownParams
+): MemoryBreakdownResult
+export function calculateMemoryBreakdown(
+  totalGpuMemoryBytes: number,
+  weightMemoryBytes: number,
+  overheadBytes: number
+): MemoryBreakdownResult
+export function calculateMemoryBreakdown(
+  arg1: number | MemoryBreakdownParams,
+  arg2?: number,
+  arg3?: number
+): MemoryBreakdownResult {
+  let totalGpuMemoryBytes = 0
+  let weightsBytes = 0
+  let overheadBytes = 0
+
+  if (typeof arg1 === "object") {
+    const gpuCount = Math.max(0, arg1.gpuCount ?? 1)
+    const singleGpuBytes = Math.max(0, arg1.gpuMemoryBytes ?? 0)
+    totalGpuMemoryBytes = Math.max(
+      0,
+      arg1.totalGpuMemoryBytes ?? singleGpuBytes * gpuCount
+    )
+
+    if (arg1.weightMemoryBytes !== undefined) {
+      weightsBytes = Math.max(0, arg1.weightMemoryBytes)
+    } else if (arg1.weightBytes !== undefined) {
+      weightsBytes = Math.max(0, arg1.weightBytes)
+    } else if (arg1.parameters !== undefined && arg1.precision !== undefined) {
+      weightsBytes = calculateWeightMemory(arg1.parameters, arg1.precision)
+    }
+
+    if (arg1.overheadBytes !== undefined) {
+      overheadBytes = Math.max(0, arg1.overheadBytes)
+    } else if (arg1.overheadFraction !== undefined) {
+      overheadBytes = totalGpuMemoryBytes * arg1.overheadFraction
+    } else {
+      overheadBytes = totalGpuMemoryBytes * 0.1
+    }
+  } else {
+    totalGpuMemoryBytes = Math.max(0, arg1)
+    weightsBytes = Math.max(0, arg2 ?? 0)
+    overheadBytes = Math.max(0, arg3 ?? 0)
+  }
+
+  const totalNeededBytes = weightsBytes + overheadBytes
+  const overflowBytes = Math.max(0, totalNeededBytes - totalGpuMemoryBytes)
+  const overflow = overflowBytes > 0
+  const freeKvBytes = overflow
+    ? 0
+    : Math.max(0, totalGpuMemoryBytes - totalNeededBytes)
+
+  const weightsGb = weightsBytes / BYTES_IN_GB
+  const overheadGb = overheadBytes / BYTES_IN_GB
+  const freeKvGb = freeKvBytes / BYTES_IN_GB
+  const totalGpuMemoryGb = totalGpuMemoryBytes / BYTES_IN_GB
+  const totalNeededGb = totalNeededBytes / BYTES_IN_GB
+  const overflowGb = overflowBytes / BYTES_IN_GB
+
+  let weightsPercent = 0
+  let overheadPercent = 0
+  let freeKvPercent = 0
+  let overflowPercent = 0
+
+  let fittedWeightsBytes = weightsBytes
+  let fittedOverheadBytes = overheadBytes
+
+  if (!overflow) {
+    if (totalGpuMemoryBytes > 0) {
+      weightsPercent = (weightsBytes / totalGpuMemoryBytes) * 100
+      overheadPercent = (overheadBytes / totalGpuMemoryBytes) * 100
+      freeKvPercent = (freeKvBytes / totalGpuMemoryBytes) * 100
+    }
+  } else {
+    fittedWeightsBytes = Math.min(weightsBytes, totalGpuMemoryBytes)
+    fittedOverheadBytes = Math.min(
+      overheadBytes,
+      Math.max(0, totalGpuMemoryBytes - fittedWeightsBytes)
+    )
+
+    if (totalNeededBytes > 0) {
+      weightsPercent = (fittedWeightsBytes / totalNeededBytes) * 100
+      overheadPercent = (fittedOverheadBytes / totalNeededBytes) * 100
+      overflowPercent = (overflowBytes / totalNeededBytes) * 100
+    }
+  }
+
+  const segments: MemorySegment[] = !overflow
+    ? [
+        {
+          id: "weights",
+          label: "Weights",
+          bytes: weightsBytes,
+          gb: weightsGb,
+          percentage: weightsPercent,
+        },
+        {
+          id: "overhead",
+          label: "Runtime Overhead",
+          bytes: overheadBytes,
+          gb: overheadGb,
+          percentage: overheadPercent,
+        },
+        {
+          id: "freeKv",
+          label: "KV Cache (free)",
+          bytes: freeKvBytes,
+          gb: freeKvGb,
+          percentage: freeKvPercent,
+        },
+      ]
+    : [
+        {
+          id: "weights",
+          label: "Weights",
+          bytes: fittedWeightsBytes,
+          gb: fittedWeightsBytes / BYTES_IN_GB,
+          percentage: weightsPercent,
+        },
+        {
+          id: "overhead",
+          label: "Runtime Overhead",
+          bytes: fittedOverheadBytes,
+          gb: fittedOverheadBytes / BYTES_IN_GB,
+          percentage: overheadPercent,
+        },
+        {
+          id: "overflow",
+          label: "Overflow",
+          bytes: overflowBytes,
+          gb: overflowGb,
+          percentage: overflowPercent,
+        },
+      ]
+
+  return {
+    weightsBytes,
+    weightsGb,
+    overheadBytes,
+    overheadGb,
+    freeKvBytes,
+    freeKvGb,
+    totalGpuMemoryBytes,
+    totalGpuMemoryGb,
+    totalNeededBytes,
+    totalNeededGb,
+    overflow,
+    overflowBytes,
+    overflowGb,
+    weightsPercent,
+    overheadPercent,
+    freeKvPercent,
+    overflowPercent,
+    segments,
+  }
+}
+
 export interface PrefillTimeParams {
   parameters: number
   promptTokens: number
