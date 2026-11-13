@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest"
 import { render, screen, fireEvent, cleanup } from "@testing-library/react"
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { App } from "./App"
+import { LEVELS } from "@/play/levels"
 
 describe("App Navigation and Default View", () => {
   beforeEach(() => {
@@ -33,7 +34,7 @@ describe("App Navigation and Default View", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "Inference Play"
     )
-    expect(screen.getByText("0 of 1 complete")).toBeInTheDocument()
+    expect(screen.getByText(`0 of ${LEVELS.length} complete`)).toBeInTheDocument()
 
     // 2. Sidebar contains Play and Lab
     const labButton = screen.getByRole("button", { name: /^lab$/i })

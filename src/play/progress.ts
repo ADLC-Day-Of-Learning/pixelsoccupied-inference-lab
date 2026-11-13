@@ -176,6 +176,12 @@ export function isLevelUnlocked(
     if (prevLevel) {
       return isLevelCompleted(state, prevLevel.id, levels)
     }
+    const precedingRegistered = levels
+      .filter((l) => l.number < levelNum)
+      .sort((a, b) => b.number - a.number)[0]
+    if (precedingRegistered) {
+      return isLevelCompleted(state, precedingRegistered.id, levels)
+    }
     return (
       state.completedLevelIds.includes(`level-${prevNum}`) ||
       state.completedLevelIds.includes(String(prevNum))
