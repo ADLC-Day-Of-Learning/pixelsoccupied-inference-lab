@@ -8,6 +8,11 @@
 
 export const BYTES_IN_GB = 1e9
 export const BYTES_IN_KB = 1e3
+export const BYTES_IN_TB = 1e12
+export const FLOPS_IN_TFLOPS = 1e12
+
+export const DEFAULT_COMPUTE_UTILIZATION = 0.5
+export const DEFAULT_BANDWIDTH_UTILIZATION = 0.7
 
 export type WeightPrecision = "FP16" | "FP8" | "INT4"
 export type KvPrecision = "FP16" | "FP8"
@@ -58,12 +63,41 @@ export interface GpuPreset {
   id: string
   name: string
   memoryGb: number
+  peakTflops: number // peak dense FP16/BF16 Tensor Core TFLOPS
+  memoryBandwidthTb: number // memory bandwidth in TB/s (1 TB = 1e12 bytes)
 }
 
 export const GPU_PRESETS: GpuPreset[] = [
-  { id: "a100-80gb", name: "A100 80GB", memoryGb: 80 },
-  { id: "h100-80gb", name: "H100 80GB", memoryGb: 80 },
-  { id: "l40s-48gb", name: "L40S 48GB", memoryGb: 48 },
+  {
+    id: "a100-80gb",
+    name: "A100 80GB",
+    memoryGb: 80,
+    // NVIDIA A100 Tensor Core GPU Architecture / Datasheet:
+    // Peak dense BF16/FP16 Tensor Core: 312 TFLOPS (dense) / 624 TFLOPS (structural sparsity)
+    // Memory bandwidth: 2,039 GB/s (~2.0 TB/s) (HBM2e)
+    peakTflops: 312,
+    memoryBandwidthTb: 2.0,
+  },
+  {
+    id: "h100-80gb",
+    name: "H100 80GB SXM",
+    memoryGb: 80,
+    // NVIDIA H100 Tensor Core GPU Architecture / Datasheet:
+    // Peak dense BF16/FP16 Tensor Core: 989 TFLOPS (dense) / 1,979 TFLOPS (structural sparsity)
+    // Memory bandwidth: 3,350 GB/s (3.35 TB/s) (HBM3)
+    peakTflops: 989,
+    memoryBandwidthTb: 3.35,
+  },
+  {
+    id: "l40s-48gb",
+    name: "L40S 48GB",
+    memoryGb: 48,
+    // NVIDIA L40S GPU Datasheet:
+    // Peak dense BF16/FP16 Tensor Core: 366 TFLOPS (dense) / 733 TFLOPS (structural sparsity)
+    // Memory bandwidth: 864 GB/s (0.864 TB/s) (GDDR6)
+    peakTflops: 366,
+    memoryBandwidthTb: 0.864,
+  },
 ]
 
 /**
@@ -278,4 +312,217 @@ export function bytesToGb(bytes: number, decimals: number = 1): string {
  */
 export function bytesToKb(bytes: number, decimals: number = 2): string {
   return (bytes / BYTES_IN_KB).toFixed(decimals)
+}
+
+export interface PrefillTimeParams {
+  parameters: number
+  promptTokens: number
+  peakFlops?: number
+  peakTflops?: number
+  gpuCount?: number
+  computeUtilization?: number
+}
+
+/**
+ * Estimates prefill (Time to First Token / TTFT) duration in seconds.
+ *
+ * Formula:
+ *   Prefill time ≈ (2 × parameters × prompt_tokens) ÷ (peak_FLOPS × GPUs × utilization)
+ *
+ * Simplifying assumptions:
+ * - Assumes 2 FLOPs per parameter per token (standard linear projection & feed-forward estimate: 1 multiply + 1 add).
+ * - Ignores quadratic attention matrix multiplication FLOPs (typically < 1-2% for context lengths <= 4k-8k).
+ * - Ignores inter-GPU communication / tensor parallelism overhead.
+ * - Ignores kernel launch overhead and memory-bound operations during prefill.
+ * - Model FLOPs Utilization (MFU) is lumped into computeUtilization (default: 0.5 = 50%).
+ *
+ * @param params Prefill estimation parameters or positional overload
+ * @returns Estimated prefill time in seconds (0 on non-positive inputs or zero capacity)
+ */
+export function estimatePrefillTime(params: PrefillTimeParams): number
+export function estimatePrefillTime(
+  parameters: number,
+  promptTokens: number,
+  peakFlops: number,
+  gpuCount?: number,
+  computeUtilization?: number
+): number
+export function estimatePrefillTime(
+  arg1: number | PrefillTimeParams,
+  arg2?: number,
+  arg3?: number,
+  arg4?: number,
+  arg5?: number
+): number {
+  if (typeof arg1 === "object") {
+    const parameters = Math.max(0, arg1.parameters)
+    const promptTokens = Math.max(0, arg1.promptTokens)
+    const gpuCount = arg1.gpuCount ?? 1
+    const utilization =
+      arg1.computeUtilization !== undefined
+        ? arg1.computeUtilization
+        : DEFAULT_COMPUTE_UTILIZATION
+
+    const peakFlops =
+      arg1.peakFlops ??
+      (arg1.peakTflops !== undefined ? arg1.peakTflops * FLOPS_IN_TFLOPS : 0)
+
+    const totalFlops = 2 * parameters * promptTokens
+    const effectiveFlops = peakFlops * gpuCount * utilization
+
+    if (effectiveFlops <= 0 || totalFlops <= 0) return 0
+    return totalFlops / effectiveFlops
+  }
+
+  const parameters = Math.max(0, arg1)
+  const promptTokens = Math.max(0, arg2 ?? 0)
+  const peakFlops = Math.max(0, arg3 ?? 0)
+  const gpuCount = arg4 ?? 1
+  const utilization =
+    arg5 !== undefined ? arg5 : DEFAULT_COMPUTE_UTILIZATION
+
+  const totalFlops = 2 * parameters * promptTokens
+  const effectiveFlops = peakFlops * gpuCount * utilization
+
+  if (effectiveFlops <= 0 || totalFlops <= 0) return 0
+  return totalFlops / effectiveFlops
+}
+
+export interface DecodeStepTimeParams {
+  weightBytes: number
+  kvBytesRead: number
+  memoryBandwidthBytesPerSec?: number
+  bandwidthBytesPerSec?: number
+  memoryBandwidthTb?: number
+  gpuCount?: number
+  bandwidthUtilization?: number
+}
+
+/**
+ * Estimates decode step latency in seconds for a single auto-regressive token generation step.
+ *
+ * Formula:
+ *   Decode step time ≈ (weight_bytes + KV_bytes_read_for_batch) ÷ (memory_bandwidth × GPUs × utilization)
+ *
+ * Simplifying assumptions:
+ * - Assumes decode phase is purely memory-bandwidth bound (reading model weights once per step +
+ *   reading the accumulated KV cache for each request in the active batch).
+ * - Assumes weights are streamed once from HBM/VRAM per step regardless of batch size
+ *   (valid for small-to-medium batch sizes before decode transitions to compute-bound).
+ * - Ignores tensor-parallel all-reduce communication latency between GPUs.
+ * - Ignores kernel launch overhead and non-memory-bound activation compute.
+ * - Memory bandwidth utilization is lumped into bandwidthUtilization (default: 0.7 = 70%).
+ *
+ * @param params Decode step estimation parameters or positional overload
+ * @returns Estimated decode step time in seconds (0 on non-positive inputs or zero capacity)
+ */
+export function estimateDecodeStepTime(params: DecodeStepTimeParams): number
+export function estimateDecodeStepTime(
+  weightBytes: number,
+  kvBytesRead: number,
+  memoryBandwidthBytesPerSec: number,
+  gpuCount?: number,
+  bandwidthUtilization?: number
+): number
+export function estimateDecodeStepTime(
+  arg1: number | DecodeStepTimeParams,
+  arg2?: number,
+  arg3?: number,
+  arg4?: number,
+  arg5?: number
+): number {
+  if (typeof arg1 === "object") {
+    const weightBytes = Math.max(0, arg1.weightBytes)
+    const kvBytesRead = Math.max(0, arg1.kvBytesRead)
+    const gpuCount = arg1.gpuCount ?? 1
+    const utilization =
+      arg1.bandwidthUtilization !== undefined
+        ? arg1.bandwidthUtilization
+        : DEFAULT_BANDWIDTH_UTILIZATION
+
+    const bandwidthBytesPerSec =
+      arg1.memoryBandwidthBytesPerSec ??
+      arg1.bandwidthBytesPerSec ??
+      (arg1.memoryBandwidthTb !== undefined
+        ? arg1.memoryBandwidthTb * BYTES_IN_TB
+        : 0)
+
+    const totalBytes = weightBytes + kvBytesRead
+    const effectiveBandwidth = bandwidthBytesPerSec * gpuCount * utilization
+
+    if (effectiveBandwidth <= 0 || totalBytes <= 0) return 0
+    return totalBytes / effectiveBandwidth
+  }
+
+  const weightBytes = Math.max(0, arg1)
+  const kvBytesRead = Math.max(0, arg2 ?? 0)
+  const bandwidthBytesPerSec = Math.max(0, arg3 ?? 0)
+  const gpuCount = arg4 ?? 1
+  const utilization =
+    arg5 !== undefined ? arg5 : DEFAULT_BANDWIDTH_UTILIZATION
+
+  const totalBytes = weightBytes + kvBytesRead
+  const effectiveBandwidth = bandwidthBytesPerSec * gpuCount * utilization
+
+  if (effectiveBandwidth <= 0 || totalBytes <= 0) return 0
+  return totalBytes / effectiveBandwidth
+}
+
+export interface DecodeTokensPerSecondParams {
+  stepTimeSeconds: number
+  batchSize?: number
+}
+
+export interface DecodeTokensPerSecondResult {
+  perRequestTokensPerSecond: number
+  aggregateTokensPerSecond: number
+}
+
+/**
+ * Calculates decode throughput in tokens per second, both per individual request
+ * and in aggregate across the batch.
+ *
+ * Formulas:
+ *   per-request tokens/s = 1 ÷ step_time_seconds
+ *   aggregate tokens/s = batch_size ÷ step_time_seconds
+ *
+ * Properties:
+ * - As batch size increases, step time increases slightly (due to reading more KV cache bytes),
+ *   causing per-request tokens/s to decrease slightly.
+ * - However, aggregate throughput (batchSize / stepTime) increases significantly because weight
+ *   memory bandwidth cost is amortized across all concurrent requests in the batch.
+ *
+ * @param params Decode throughput parameters or positional stepTimeSeconds
+ * @param batchSize Optional batch size (defaults to 1) for positional overload
+ * @returns DecodeTokensPerSecondResult with perRequestTokensPerSecond and aggregateTokensPerSecond
+ */
+export function estimateDecodeTokensPerSecond(
+  params: DecodeTokensPerSecondParams
+): DecodeTokensPerSecondResult
+export function estimateDecodeTokensPerSecond(
+  stepTimeSeconds: number,
+  batchSize?: number
+): DecodeTokensPerSecondResult
+export function estimateDecodeTokensPerSecond(
+  arg1: number | DecodeTokensPerSecondParams,
+  arg2?: number
+): DecodeTokensPerSecondResult {
+  const stepTimeSeconds = typeof arg1 === "object" ? arg1.stepTimeSeconds : arg1
+  const rawBatchSize =
+    typeof arg1 === "object" ? (arg1.batchSize ?? 1) : (arg2 ?? 1)
+
+  if (stepTimeSeconds <= 0 || rawBatchSize <= 0) {
+    return {
+      perRequestTokensPerSecond: 0,
+      aggregateTokensPerSecond: 0,
+    }
+  }
+
+  const perRequestTokensPerSecond = 1 / stepTimeSeconds
+  const aggregateTokensPerSecond = rawBatchSize / stepTimeSeconds
+
+  return {
+    perRequestTokensPerSecond,
+    aggregateTokensPerSecond,
+  }
 }
