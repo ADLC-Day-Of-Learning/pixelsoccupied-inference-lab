@@ -27,6 +27,7 @@ export function PlayPage() {
     const Component = selectedLevel.Component
     return (
       <LevelLayout
+        key={selectedLevel.id}
         level={selectedLevel}
         isCompleted={isCompleted(selectedLevel.id)}
         onBack={() => setSelectedLevelId(null)}

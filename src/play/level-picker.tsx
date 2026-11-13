@@ -1,7 +1,8 @@
 import { CheckCircle2, Lock, Play, RotateCcw } from "lucide-react"
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import type { LevelDefinition } from "./types"
 import { getLevelState } from "./progress"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -61,16 +62,54 @@ export function LevelPicker({
           </div>
           {completedCount > 0 && (
             <div className="flex justify-end pt-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onResetProgress}
-                className="h-6 text-[11px] text-muted-foreground hover:text-destructive px-1.5 gap-1"
-                aria-label="Reset progress"
-              >
-                <RotateCcw className="size-3" />
-                <span>Reset progress</span>
-              </Button>
+              <AlertDialogPrimitive.Root>
+                <AlertDialogPrimitive.Trigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[11px] text-muted-foreground hover:text-destructive px-1.5 gap-1"
+                      aria-label="Reset progress"
+                    >
+                      <RotateCcw className="size-3" />
+                      <span>Reset progress</span>
+                    </Button>
+                  }
+                />
+                <AlertDialogPrimitive.Portal>
+                  <AlertDialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/80 data-ending-style:opacity-0 data-starting-style:opacity-0 transition-opacity duration-150" />
+                  <AlertDialogPrimitive.Popup className="fixed left-1/2 top-1/2 z-50 grid w-full max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg duration-200 rounded-lg">
+                    <div className="flex flex-col space-y-2 text-center sm:text-left">
+                      <AlertDialogPrimitive.Title className="text-lg font-semibold">
+                        Reset progress?
+                      </AlertDialogPrimitive.Title>
+                      <AlertDialogPrimitive.Description className="text-sm text-muted-foreground">
+                        This will permanently erase all completed level progress from this browser. This action cannot be undone.
+                      </AlertDialogPrimitive.Description>
+                    </div>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
+                      <AlertDialogPrimitive.Close
+                        render={
+                          <Button variant="outline" size="sm">
+                            Cancel
+                          </Button>
+                        }
+                      />
+                      <AlertDialogPrimitive.Close
+                        render={
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={onResetProgress}
+                          >
+                            Confirm reset
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </AlertDialogPrimitive.Popup>
+                </AlertDialogPrimitive.Portal>
+              </AlertDialogPrimitive.Root>
             </div>
           )}
         </div>
@@ -84,10 +123,13 @@ export function LevelPicker({
           const isCompleted = state === "completed"
 
           return (
-            <Card
+            <button
+              type="button"
               key={level.id}
+              data-slot="card"
               data-testid={`level-card-${level.id}`}
               data-level-state={state}
+              disabled={isLocked}
               aria-disabled={isLocked}
               onClick={() => {
                 if (!isLocked) {
@@ -95,7 +137,7 @@ export function LevelPicker({
                 }
               }}
               className={cn(
-                "relative flex flex-col justify-between transition-all",
+                "cn-card group/card text-left relative flex flex-col justify-between transition-all rounded-xl border bg-card text-card-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 isLocked
                   ? "opacity-60 bg-muted/30 border-dashed cursor-not-allowed select-none"
                   : "cursor-pointer hover:border-primary/60 hover:shadow-xs",
@@ -164,7 +206,7 @@ export function LevelPicker({
                   )}
                 </div>
               </CardContent>
-            </Card>
+            </button>
           )
         })}
       </div>

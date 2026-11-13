@@ -8,11 +8,18 @@ import {
   Zap,
 } from "lucide-react"
 import type { LevelProps } from "../types"
-import { LevelSectionContent } from "../level-layout"
-import { useLevelLayout } from "../level-context"
+import { LevelSectionContent, useLevelLayout } from "../level-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  calculateWeightMemory,
+  calculateKvCachePerToken,
+  estimateDecodeStepTime,
+  estimateDecodeTokensPerSecond,
+  MODEL_PRESETS,
+  GPU_PRESETS,
+} from "@/lib/model"
 
 export function Level0Component({ onComplete }: LevelProps) {
   const { setActiveSection, isCompleted } = useLevelLayout()
@@ -21,9 +28,30 @@ export function Level0Component({ onComplete }: LevelProps) {
   const [promptTokens, setPromptTokens] = React.useState(512)
   const [hardware, setHardware] = React.useState<"A100" | "H100">("A100")
 
-  // Approximate ballpark preview calculation for demonstration
-  const bandwidthGBs = hardware === "H100" ? 3350 : 2039
-  const tokensPerSec = Math.round((bandwidthGBs / 140) * 1.5)
+  // Dynamic preview calculation using canonical pure formulas from src/lib/model.ts
+  const model = MODEL_PRESETS[0] // Llama-3-8B
+  const gpu =
+    GPU_PRESETS.find((g) =>
+      hardware === "H100" ? g.id === "h100-80gb" : g.id === "a100-80gb"
+    ) ?? GPU_PRESETS[0]
+
+  const weightBytes = calculateWeightMemory(model.parameters, "FP16")
+  const kvBytesPerToken = calculateKvCachePerToken(
+    model.layers,
+    model.kvHeads,
+    model.headDim,
+    "FP16"
+  )
+  const kvBytesRead = promptTokens * kvBytesPerToken
+
+  const stepTime = estimateDecodeStepTime({
+    weightBytes,
+    kvBytesRead,
+    memoryBandwidthTb: gpu.memoryBandwidthTb,
+  })
+
+  const { perRequestTokensPerSecond } = estimateDecodeTokensPerSecond(stepTime)
+  const tokensPerSec = Math.round(perRequestTokensPerSecond)
 
   return (
     <div className="space-y-6">
@@ -153,6 +181,7 @@ export function Level0Component({ onComplete }: LevelProps) {
                   <Button
                     size="sm"
                     variant={hardware === "A100" ? "default" : "outline"}
+                    aria-pressed={hardware === "A100"}
                     onClick={() => setHardware("A100")}
                     className="h-7 text-xs"
                   >
@@ -161,6 +190,7 @@ export function Level0Component({ onComplete }: LevelProps) {
                   <Button
                     size="sm"
                     variant={hardware === "H100" ? "default" : "outline"}
+                    aria-pressed={hardware === "H100"}
                     onClick={() => setHardware("H100")}
                     className="h-7 text-xs"
                   >
@@ -178,7 +208,7 @@ export function Level0Component({ onComplete }: LevelProps) {
                 ~{tokensPerSec} tokens/s
               </div>
               <p className="text-xs text-muted-foreground">
-                Higher memory bandwidth translates directly to faster token generation.
+                Llama-3-8B (FP16) reading {Math.round(kvBytesRead / 1e6)} MB KV cache across {promptTokens} prompt tokens at {gpu.memoryBandwidthTb.toFixed(1)} TB/s bandwidth.
               </p>
             </div>
           </div>

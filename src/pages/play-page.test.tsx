@@ -66,6 +66,8 @@ describe("PlayPage end-to-end integration", () => {
     // 9. Reset progress action
     const resetButton = screen.getByRole("button", { name: /reset progress/i })
     fireEvent.click(resetButton)
+    const confirmButton = screen.getByRole("button", { name: /confirm reset/i })
+    fireEvent.click(confirmButton)
     expect(screen.getByText("0 of 1 complete")).toBeInTheDocument()
     expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
       "data-level-state",

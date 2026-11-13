@@ -97,12 +97,13 @@ describe("LevelPicker", () => {
     // Click locked level -> does NOT trigger onSelectLevel
     handleSelect.mockClear()
     const card2 = screen.getByTestId("level-card-prefill-decode")
+    expect(card2).toBeDisabled()
     expect(card2).toHaveAttribute("aria-disabled", "true")
     fireEvent.click(card2)
     expect(handleSelect).not.toHaveBeenCalled()
   })
 
-  it("provides a working Reset Progress action when levels are completed", () => {
+  it("provides a working Reset Progress action with confirmation dialog", () => {
     const handleSelect = vi.fn()
     const handleReset = vi.fn()
 
@@ -118,6 +119,16 @@ describe("LevelPicker", () => {
     const resetButton = screen.getByRole("button", { name: /reset progress/i })
     expect(resetButton).toBeInTheDocument()
     fireEvent.click(resetButton)
+
+    // Dialog appears with warning
+    expect(screen.getByText("Reset progress?")).toBeInTheDocument()
+    expect(
+      screen.getByText(/permanently erase all completed level progress/i)
+    ).toBeInTheDocument()
+
+    // Confirming triggers reset
+    const confirmButton = screen.getByRole("button", { name: /confirm reset/i })
+    fireEvent.click(confirmButton)
     expect(handleReset).toHaveBeenCalledTimes(1)
   })
 

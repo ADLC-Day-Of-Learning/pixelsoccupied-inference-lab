@@ -72,6 +72,7 @@ describe("progress and level unlocking", () => {
     // Complete Level 1
     const updated = markLevelCompleted(initialState, mockLevel1.id, mockLevels)
     expect(isLevelCompleted(updated, mockLevel1.id, mockLevels)).toBe(true)
+    expect(isLevelCompleted(updated, mockLevel1, mockLevels)).toBe(true)
     expect(isLevelUnlocked(updated, 2, mockLevels)).toBe(true)
     expect(isLevelUnlocked(updated, 3, mockLevels)).toBe(false)
 
@@ -99,7 +100,7 @@ describe("progress and level unlocking", () => {
     state = markLevelCompleted(state, "sampling", mockLevels)
     expect(state.completedLevelIds.length).toBe(2)
 
-    const reset = resetProgress(state)
+    const reset = resetProgress()
     expect(reset.completedLevelIds).toEqual([])
   })
 

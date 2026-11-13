@@ -86,7 +86,7 @@ export function markLevelCompleted(
 /**
  * Clears all progress.
  */
-export function resetProgress(_state?: ProgressState): ProgressState {
+export function resetProgress(): ProgressState {
   return getInitialProgressState()
 }
 
@@ -95,20 +95,27 @@ export function resetProgress(_state?: ProgressState): ProgressState {
  */
 export function isLevelCompleted(
   state: ProgressState,
-  levelIdOrNumber: string | number,
+  levelOrNumber: LevelDefinition | string | number,
   levels: LevelDefinition[] = []
 ): boolean {
-  if (typeof levelIdOrNumber === "number") {
-    const matched = levels.find((l) => l.number === levelIdOrNumber)
+  let resolvedId: string | number
+  if (typeof levelOrNumber === "object" && levelOrNumber !== null) {
+    resolvedId = levelOrNumber.id
+  } else {
+    resolvedId = levelOrNumber
+  }
+
+  if (typeof resolvedId === "number") {
+    const matched = levels.find((l) => l.number === resolvedId)
     if (matched && state.completedLevelIds.includes(matched.id)) {
       return true
     }
     return (
-      state.completedLevelIds.includes(`level-${levelIdOrNumber}`) ||
-      state.completedLevelIds.includes(String(levelIdOrNumber))
+      state.completedLevelIds.includes(`level-${resolvedId}`) ||
+      state.completedLevelIds.includes(String(resolvedId))
     )
   }
-  return state.completedLevelIds.includes(levelIdOrNumber)
+  return state.completedLevelIds.includes(resolvedId)
 }
 
 /**
@@ -214,8 +221,8 @@ export function useProgress(levels: LevelDefinition[] = []) {
   return {
     completedLevelIds: state.completedLevelIds,
     isCompleted: React.useCallback(
-      (levelIdOrNumber: string | number) =>
-        isLevelCompleted(state, levelIdOrNumber, levels),
+      (levelOrNumber: LevelDefinition | string | number) =>
+        isLevelCompleted(state, levelOrNumber, levels),
       [state, levels]
     ),
     isUnlocked: React.useCallback(

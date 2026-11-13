@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
 
-export type AppView = "play" | "calculator" | "lab"
+export type AppView = "play" | "lab"
 
 interface AppSidebarProps {
   currentView: AppView
@@ -22,7 +22,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ currentView, onSelectView }: AppSidebarProps) {
-  const isLabActive = currentView === "calculator" || currentView === "lab"
+  const isLabActive = currentView === "lab"
   const isPlayActive = currentView === "play"
 
   return (
@@ -66,7 +66,7 @@ export function AppSidebar({ currentView, onSelectView }: AppSidebarProps) {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={isLabActive}
-                  onClick={() => onSelectView("calculator")}
+                  onClick={() => onSelectView("lab")}
                   tooltip="Lab"
                 >
                   <Calculator />

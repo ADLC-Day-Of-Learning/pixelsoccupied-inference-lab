@@ -40,6 +40,9 @@ describe("LevelLayout", () => {
     // Initial section is Learn
     expect(screen.getByText("Learn Section Content")).toBeInTheDocument()
     expect(screen.queryByText("Try Section Content")).not.toBeInTheDocument()
+    const learnPanel = screen.getByRole("tabpanel")
+    expect(learnPanel).toHaveAttribute("id", "section-panel-learn")
+    expect(learnPanel).toHaveAttribute("aria-labelledby", "section-tab-learn")
 
     // Switch to Try
     const tryTab = screen.getByRole("tab", { name: /try/i })
@@ -80,7 +83,10 @@ describe("LevelLayout", () => {
     )
 
     expect(screen.getByText(/Complete ✓/i)).toBeInTheDocument()
-    expect(screen.getByTestId("completion-celebration")).toBeInTheDocument()
+    const celebration = screen.getByTestId("completion-celebration")
+    expect(celebration).toBeInTheDocument()
+    expect(celebration).toHaveAttribute("role", "status")
+    expect(celebration).toHaveAttribute("aria-live", "polite")
   })
 
   it("handles Back to levels and Next level button clicks", () => {

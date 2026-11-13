@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
+// eslint-disable-next-line react-refresh/only-export-components
+export { useLevelLayout } from "./level-context"
 export type { LevelSection, LevelLayoutContextValue }
 
 export function LevelSectionContent({
@@ -24,7 +26,17 @@ export function LevelSectionContent({
 }) {
   const { activeSection } = useLevelLayout()
   if (activeSection !== section) return null
-  return <div className="space-y-6 animate-in fade-in duration-200">{children}</div>
+  return (
+    <div
+      role="tabpanel"
+      id={`section-panel-${section}`}
+      aria-labelledby={`section-tab-${section}`}
+      tabIndex={0}
+      className="space-y-6 animate-in fade-in duration-200"
+    >
+      {children}
+    </div>
+  )
 }
 
 export interface LevelLayoutProps {
@@ -34,10 +46,6 @@ export interface LevelLayoutProps {
   onNext?: () => void
   activeSection?: LevelSection
   onSectionChange?: (section: LevelSection) => void
-  learn?: React.ReactNode
-  trySection?: React.ReactNode
-  challenge?: React.ReactNode
-  recap?: React.ReactNode
   children?: React.ReactNode
 }
 
@@ -48,10 +56,6 @@ export function LevelLayout({
   onNext,
   activeSection: controlledSection,
   onSectionChange,
-  learn,
-  trySection,
-  challenge,
-  recap,
   children,
 }: LevelLayoutProps) {
   const [internalSection, setInternalSection] = React.useState<LevelSection>("learn")
@@ -145,6 +149,9 @@ export function LevelLayout({
         {isCompleted && (
           <div
             data-testid="completion-celebration"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
             className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-emerald-950 dark:text-emerald-100 shadow-xs animate-in fade-in zoom-in-95 duration-300"
           >
             <div className="flex items-center gap-2.5">
@@ -225,18 +232,6 @@ export function LevelLayout({
         {/* Section content */}
         <Card>
           <CardContent className="pt-6">
-            {learn && activeSection === "learn" && (
-              <div className="space-y-6 animate-in fade-in duration-200">{learn}</div>
-            )}
-            {trySection && activeSection === "try" && (
-              <div className="space-y-6 animate-in fade-in duration-200">{trySection}</div>
-            )}
-            {challenge && activeSection === "challenge" && (
-              <div className="space-y-6 animate-in fade-in duration-200">{challenge}</div>
-            )}
-            {recap && activeSection === "recap" && (
-              <div className="space-y-6 animate-in fade-in duration-200">{recap}</div>
-            )}
             {children}
           </CardContent>
         </Card>
