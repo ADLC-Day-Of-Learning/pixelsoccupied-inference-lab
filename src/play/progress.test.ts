@@ -156,4 +156,19 @@ describe("progress and level unlocking", () => {
     const loaded = loadProgress()
     expect(loaded).toEqual({ completedLevelIds: [] })
   })
+
+  it("unlocks level when immediately preceding level is not present in registry", () => {
+    const mockLevel4: LevelDefinition = {
+      id: "batching",
+      number: 4,
+      title: "Batching",
+      concept: "Batching concept",
+      Component: () => null,
+    }
+    const sparseLevels = [mockLevel0, mockLevel4]
+    const state = getInitialProgressState()
+
+    // Level 4 is unlocked because highest preceding registered level is level 0
+    expect(isLevelUnlocked(state, mockLevel4, sparseLevels)).toBe(true)
+  })
 })
