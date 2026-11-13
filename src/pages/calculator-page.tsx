@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Select,
@@ -181,15 +180,10 @@ export function CalculatorPage() {
           {/* Model Specification Card */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Cpu className="size-4" />
-                  Model Configuration
-                </CardTitle>
-                <Badge variant="outline" className="text-xs">
-                  {modelPreset === "custom" ? "Custom" : "Preset"}
-                </Badge>
-              </div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Cpu className="size-4" />
+                Model Configuration
+              </CardTitle>
               <CardDescription>
                 Choose an architecture preset or enter custom dimensions.
               </CardDescription>
@@ -215,67 +209,75 @@ export function CalculatorPage() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="params">Parameters (Billions)</Label>
-                  <Input
-                    id="params"
-                    type="number"
-                    min={0.1}
-                    step={0.1}
-                    value={paramsBillions}
-                    onChange={(e) => {
-                      setParamsBillions(parseFloat(e.target.value) || 0)
-                      setModelPreset("custom")
-                    }}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="layers">Layers</Label>
-                  <Input
-                    id="layers"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={layers}
-                    onChange={(e) => {
-                      setLayers(parseInt(e.target.value, 10) || 0)
-                      setModelPreset("custom")
-                    }}
-                  />
-                </div>
-              </div>
+              {modelPreset === "custom" ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="params">Parameters (Billions)</Label>
+                      <Input
+                        id="params"
+                        type="number"
+                        min={0.1}
+                        step={0.1}
+                        value={paramsBillions}
+                        onChange={(e) => {
+                          setParamsBillions(parseFloat(e.target.value) || 0)
+                          setModelPreset("custom")
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="layers">Layers</Label>
+                      <Input
+                        id="layers"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={layers}
+                        onChange={(e) => {
+                          setLayers(parseInt(e.target.value, 10) || 0)
+                          setModelPreset("custom")
+                        }}
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="kv-heads">KV Heads</Label>
-                  <Input
-                    id="kv-heads"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={kvHeads}
-                    onChange={(e) => {
-                      setKvHeads(parseInt(e.target.value, 10) || 0)
-                      setModelPreset("custom")
-                    }}
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="kv-heads">KV Heads</Label>
+                      <Input
+                        id="kv-heads"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={kvHeads}
+                        onChange={(e) => {
+                          setKvHeads(parseInt(e.target.value, 10) || 0)
+                          setModelPreset("custom")
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="head-dim">Head Dimension</Label>
+                      <Input
+                        id="head-dim"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={headDim}
+                        onChange={(e) => {
+                          setHeadDim(parseInt(e.target.value, 10) || 0)
+                          setModelPreset("custom")
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+                  {paramsBillions}B params · {layers} layers · {kvHeads} KV heads · head dim {headDim}
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="head-dim">Head Dimension</Label>
-                  <Input
-                    id="head-dim"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={headDim}
-                    onChange={(e) => {
-                      setHeadDim(parseInt(e.target.value, 10) || 0)
-                      setModelPreset("custom")
-                    }}
-                  />
-                </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="space-y-1.5">
