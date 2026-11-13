@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, it, expect, afterEach } from "vitest"
+import { afterEach, describe, it, expect } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
 
 afterEach(() => {
@@ -57,10 +57,18 @@ describe("CalculatorPage preset dropdowns", () => {
   })
 
   it("updates dropdown triggers to Custom labels when input values are manually edited", async () => {
+    const user = userEvent.setup()
     render(<CalculatorPage />)
 
     const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
     const gpuTrigger = screen.getByRole("combobox", { name: /gpu preset/i })
+
+    // Switch model to Custom Dimensions so architecture inputs are displayed
+    await user.click(modelTrigger)
+    const customModelOption = await screen.findByRole("option", {
+      name: /custom dimensions/i,
+    })
+    await user.click(customModelOption)
 
     // Edit model parameter input
     const paramsInput = screen.getByLabelText(/parameters \(billions\)/i)
@@ -162,5 +170,69 @@ describe("CalculatorPage context length presets", () => {
     ).not.toBeInTheDocument()
     expect(customInput).toHaveAttribute("aria-invalid", "false")
     expect(screen.getByText(/8,192 tokens\/request/i)).toBeInTheDocument()
+  })
+})
+
+describe("Model configuration card architecture fields", () => {
+  it("shows a compact read-only summary for presets and editable inputs for custom", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+
+    // Default preset (Llama-3-8B): read-only summary shown, inputs and preset badge absent
+    expect(
+      screen.getByText(/8B params · 32 layers · 8 KV heads · head dim 128/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/parameters \(billions\)/i)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^layers$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/kv heads/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/head dimension/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
+
+    // Switch to another preset (Llama-3-70B): summary updates, inputs still hidden
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    expect(
+      screen.getByText(/70B params · 80 layers · 8 KV heads · head dim 128/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/parameters \(billions\)/i)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
+
+    // Switch to Custom Dimensions: summary disappears, editable inputs appear
+    await user.click(modelTrigger)
+    const customOption = await screen.findByRole("option", {
+      name: /custom dimensions/i,
+    })
+    await user.click(customOption)
+
+    expect(screen.queryByText(/params ·.*layers/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/parameters \(billions\)/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^layers$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/kv heads/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/head dimension/i)).toBeInTheDocument()
+
+    // Switch back to preset: inputs are hidden again, summary reappears
+    await user.click(modelTrigger)
+    const model8bOption = await screen.findByRole("option", {
+      name: /llama-3-8b/i,
+    })
+    await user.click(model8bOption)
+
+    expect(
+      screen.getByText(/8B params · 32 layers · 8 KV heads · head dim 128/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/parameters \(billions\)/i)
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
   })
 })
