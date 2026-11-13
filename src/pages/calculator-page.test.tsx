@@ -1,9 +1,30 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, it, expect } from "vitest"
+import { afterEach, beforeAll, describe, it, expect } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
+import { App } from "@/App"
+
+afterEach(() => {
+  cleanup()
+})
+
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  })
+})
 
 describe("CalculatorPage preset dropdowns", () => {
   it("displays human-readable labels instead of internal ids in select triggers", async () => {
@@ -69,5 +90,33 @@ describe("CalculatorPage preset dropdowns", () => {
     fireEvent.change(gpuMemInput, { target: { value: "24" } })
     expect(gpuTrigger).toHaveTextContent("Custom Memory")
     expect(gpuTrigger).not.toHaveTextContent("custom▼")
+  })
+})
+
+describe("Calculator disclaimers and unit notes", () => {
+  it("removes redundant notices and renders single consolidated footer line in CalculatorPage", () => {
+    render(<CalculatorPage />)
+
+    // Top alert banner should be absent
+    expect(screen.queryByText(/estimates, not benchmarks/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/1 GB = 1e9 bytes/i)).not.toBeInTheDocument()
+
+    // Single consolidated disclaimer should appear under results
+    expect(
+      screen.getByText("Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.")
+    ).toBeInTheDocument()
+  })
+
+  it("removes redundant notices across the app shell", () => {
+    render(<App />)
+
+    // Top alert banner and header/sidebar badges/notes should be absent
+    expect(screen.queryByText(/estimates, not benchmarks/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/1 GB = 1e9 bytes/i)).not.toBeInTheDocument()
+
+    // Single consolidated disclaimer should appear under results
+    expect(
+      screen.getByText("Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.")
+    ).toBeInTheDocument()
   })
 })
