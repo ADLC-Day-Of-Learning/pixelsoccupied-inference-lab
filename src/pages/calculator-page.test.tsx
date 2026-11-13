@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, afterEach } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
+
+afterEach(() => {
+  cleanup()
+})
 
 describe("CalculatorPage preset dropdowns", () => {
   it("displays human-readable labels instead of internal ids in select triggers", async () => {
@@ -69,5 +73,102 @@ describe("CalculatorPage preset dropdowns", () => {
     fireEvent.change(gpuMemInput, { target: { value: "24" } })
     expect(gpuTrigger).toHaveTextContent("Custom Memory")
     expect(gpuTrigger).not.toHaveTextContent("custom▼")
+  })
+})
+
+describe("CalculatorPage hero result panel", () => {
+  it("renders large verdict and headline max concurrent requests when model fits", () => {
+    render(<CalculatorPage />)
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+    expect(heroPanel).toBeInTheDocument()
+
+    // Verdict "Fits"
+    expect(within(heroPanel).getByText("Fits")).toBeInTheDocument()
+    expect(
+      within(heroPanel).getByText(/model weights require 16\.0 GB out of 80\.0 GB/i)
+    ).toBeInTheDocument()
+
+    // Headline max concurrent requests
+    expect(within(heroPanel).getByText("Max Concurrent Requests")).toBeInTheDocument()
+    expect(within(heroPanel).getByText("104")).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/@ 4,096 tokens context/i)).toBeInTheDocument()
+
+    // Secondary metrics in compact grid
+    expect(screen.getByText("Weight Memory")).toBeInTheDocument()
+    expect(screen.getByText("KV Cache per Token")).toBeInTheDocument()
+    expect(screen.getByText("Free Memory for KV")).toBeInTheDocument()
+    expect(screen.getByText("KV Capacity")).toBeInTheDocument()
+  })
+
+  it("displays shortfall in GB and 0 concurrent requests when model exceeds capacity", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Select Llama-3-70B preset (140 GB weights on 1x 80 GB GPU -> 60 GB shortfall)
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+
+    // Hero panel shows "Does Not Fit"
+    expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
+
+    // Displays shortfall in GB
+    expect(within(heroPanel).getByText(/60\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(
+      within(heroPanel).getByText(/weights need 140 GB, but only 80 GB is available/i)
+    ).toBeInTheDocument()
+
+    // Max concurrent requests is 0
+    expect(within(heroPanel).getByText("0")).toBeInTheDocument()
+  })
+
+  it("displays shortfall in GB when model exceeds available memory after overhead", () => {
+    render(<CalculatorPage />)
+
+    // Set parameters to 37.5B FP16 (75 GB weights) on 1x 80 GB GPU with 8 GB overhead (72 GB available -> 3 GB shortfall)
+    const paramsInput = screen.getByLabelText(/parameters \(billions\)/i)
+    fireEvent.change(paramsInput, { target: { value: "37.5" } })
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+
+    expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/3\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(
+      within(heroPanel).getByText(/weights need 75 GB, but only 72 GB is available after overhead/i)
+    ).toBeInTheDocument()
+    expect(within(heroPanel).getByText("0")).toBeInTheDocument()
+  })
+
+  it("flips from Does Not Fit with shortfall to Fits when GPU count is increased", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Select Llama-3-70B on 1x A100 80GB
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+
+    expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/60\.0 GB Shortfall/i)).toBeInTheDocument()
+
+    // Increase GPU count to 2 (160 GB total memory, 140 GB weights, 16 GB overhead -> 4 GB free)
+    const gpuCountInput = screen.getByLabelText(/number of gpus/i)
+    fireEvent.change(gpuCountInput, { target: { value: "2" } })
+
+    expect(within(heroPanel).getByText("Fits")).toBeInTheDocument()
+    expect(within(heroPanel).queryByText("Does Not Fit")).not.toBeInTheDocument()
+    expect(within(heroPanel).queryByText(/shortfall/i)).not.toBeInTheDocument()
+    expect(within(heroPanel).getByText("Max Concurrent Requests")).toBeInTheDocument()
   })
 })

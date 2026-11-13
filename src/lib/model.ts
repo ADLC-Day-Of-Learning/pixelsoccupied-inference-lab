@@ -216,6 +216,27 @@ export interface MemoryFitResult {
   overheadGb: number
   freeMemoryBytes: number
   freeMemoryGb: number
+  shortfallBytes: number
+  shortfallGb: number
+}
+
+/**
+ * Calculate memory shortfall in bytes when a model does not fit in GPU memory.
+ * Returns 0 if the model fits.
+ */
+export function calculateMemoryShortfall(
+  weightMemoryBytes: number,
+  totalGpuMemoryBytes: number,
+  overheadBytes: number = 0
+): number {
+  const availableAfterOverhead = Math.max(0, totalGpuMemoryBytes - overheadBytes)
+  if (weightMemoryBytes > totalGpuMemoryBytes) {
+    return Math.max(0, weightMemoryBytes - totalGpuMemoryBytes)
+  }
+  if (weightMemoryBytes > availableAfterOverhead) {
+    return Math.max(0, weightMemoryBytes - availableAfterOverhead)
+  }
+  return 0
 }
 
 /**
@@ -256,6 +277,11 @@ export function evaluateMemoryFit(params: MemoryFitParams): MemoryFitResult {
   }
 
   if (weightMemoryBytes > totalGpuMemoryBytes) {
+    const shortfallBytes = calculateMemoryShortfall(
+      weightMemoryBytes,
+      totalGpuMemoryBytes,
+      overheadBytes
+    )
     return {
       fits: false,
       verdict: `Does not fit: weights need ${formatGb(weightMemoryGb)} GB, but only ${formatGb(totalGpuMemoryGb)} GB is available`,
@@ -267,11 +293,18 @@ export function evaluateMemoryFit(params: MemoryFitParams): MemoryFitResult {
       overheadGb,
       freeMemoryBytes: 0,
       freeMemoryGb: 0,
+      shortfallBytes,
+      shortfallGb: shortfallBytes / BYTES_IN_GB,
     }
   }
 
   if (weightMemoryBytes > availableAfterOverhead) {
     const availableGb = availableAfterOverhead / BYTES_IN_GB
+    const shortfallBytes = calculateMemoryShortfall(
+      weightMemoryBytes,
+      totalGpuMemoryBytes,
+      overheadBytes
+    )
     return {
       fits: false,
       verdict: `Does not fit: weights need ${formatGb(weightMemoryGb)} GB, but only ${formatGb(availableGb)} GB is available after overhead`,
@@ -283,6 +316,8 @@ export function evaluateMemoryFit(params: MemoryFitParams): MemoryFitResult {
       overheadGb,
       freeMemoryBytes: 0,
       freeMemoryGb: 0,
+      shortfallBytes,
+      shortfallGb: shortfallBytes / BYTES_IN_GB,
     }
   }
 
@@ -297,6 +332,8 @@ export function evaluateMemoryFit(params: MemoryFitParams): MemoryFitResult {
     overheadGb,
     freeMemoryBytes,
     freeMemoryGb,
+    shortfallBytes: 0,
+    shortfallGb: 0,
   }
 }
 
