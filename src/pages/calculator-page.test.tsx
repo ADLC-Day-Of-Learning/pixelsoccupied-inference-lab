@@ -162,6 +162,36 @@ describe("CalculatorPage formula collapsibles and unit display", () => {
     // Fifth card is still open
     expect(screen.getByText(/floor\(kv_capacity ÷ context_length\)/i)).toBeVisible()
   })
+
+  it("provides distinct accessible names for each formula toggle while preserving visible label", () => {
+    render(<CalculatorPage />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (Weight Memory)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (KV Cache per Token)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (Free Memory for KV)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (KV Capacity)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (Max Concurrent Requests)",
+      })
+    ).toBeInTheDocument()
+  })
 })
 
 describe("CalculatorPage GPU count segmented control", () => {
@@ -191,10 +221,10 @@ describe("CalculatorPage GPU count segmented control", () => {
     expect(btn4).toHaveAttribute("data-state", "on")
 
     // Verify formula card updated for 4 GPUs (e.g. "80 GB × 4")
-    const toggles = screen.getAllByRole("button", {
-      name: /how is this calculated\?/i,
+    const freeMemToggle = screen.getByRole("button", {
+      name: "How is this calculated? (Free Memory for KV)",
     })
-    await user.click(toggles[2])
+    await user.click(freeMemToggle)
     expect(screen.getByText(/80 GB × 4/i)).toBeInTheDocument()
   })
 
@@ -218,10 +248,10 @@ describe("CalculatorPage GPU count segmented control", () => {
     expect(btn2).toHaveAttribute("data-state", "on")
     expect(btn1).toHaveAttribute("data-state", "off")
 
-    const toggles = screen.getAllByRole("button", {
-      name: /how is this calculated\?/i,
+    const freeMemToggle = screen.getByRole("button", {
+      name: "How is this calculated? (Free Memory for KV)",
     })
-    await user.click(toggles[2])
+    await user.click(freeMemToggle)
     expect(screen.getByText(/80 GB × 2/i)).toBeInTheDocument()
   })
 })

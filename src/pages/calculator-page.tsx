@@ -554,7 +554,10 @@ export function CalculatorPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <Collapsible>
-                  <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer">
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (Weight Memory)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
                     <span>How is this calculated?</span>
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
@@ -587,7 +590,10 @@ export function CalculatorPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <Collapsible>
-                  <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer">
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (KV Cache per Token)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
                     <span>How is this calculated?</span>
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
@@ -617,7 +623,10 @@ export function CalculatorPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <Collapsible>
-                  <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer">
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (Free Memory for KV)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
                     <span>How is this calculated?</span>
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
@@ -648,7 +657,10 @@ export function CalculatorPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <Collapsible>
-                  <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer">
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (KV Capacity)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
                     <span>How is this calculated?</span>
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
@@ -683,7 +695,10 @@ export function CalculatorPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <Collapsible>
-                  <CollapsibleTrigger className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer">
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (Max Concurrent Requests)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
                     <span>How is this calculated?</span>
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
