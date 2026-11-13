@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
   Cpu,
   Database,
   HardDrive,
@@ -28,6 +29,11 @@ import {
   type KvPrecision,
 } from "@/lib/model"
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Card,
   CardContent,
@@ -751,14 +757,25 @@ export function CalculatorPage() {
                   {weightMemoryGb.toFixed(1)} <span className="text-sm font-normal text-muted-foreground">GB</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1.5 pt-0">
-                <div className="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
-                  <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
-                  <div>parameters × bytes_per_param</div>
-                  <div className="text-foreground mt-1 text-[11px]">
-                    {paramsBillions}B × {BYTES_PER_PARAM[weightPrecision]} B = {weightMemoryGb.toFixed(1)} GB
-                  </div>
-                </div>
+              <CardContent className="pt-0">
+                <Collapsible>
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (Weight Memory)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
+                    <span>How is this calculated?</span>
+                    <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                      <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
+                      <div>parameters × bytes_per_param</div>
+                      <div className="text-foreground mt-1 text-[11px]">
+                        {paramsBillions}B × {BYTES_PER_PARAM[weightPrecision]} B = {weightMemoryGb.toFixed(1)} GB
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </CardContent>
             </Card>
 
@@ -776,14 +793,25 @@ export function CalculatorPage() {
                   </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1.5 pt-0">
-                <div className="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
-                  <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
-                  <div>2 × layers × kv_heads × head_dim × bytes_per_element</div>
-                  <div className="text-foreground mt-1 text-[11px]">
-                    2 × {layers} × {kvHeads} × {headDim} × {BYTES_PER_KV_ELEMENT[kvPrecision]} B = {kvCachePerTokenBytes.toLocaleString()} B ({kvCachePerTokenKb.toFixed(2)} KB)
-                  </div>
-                </div>
+              <CardContent className="pt-0">
+                <Collapsible>
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (KV Cache per Token)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
+                    <span>How is this calculated?</span>
+                    <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                      <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
+                      <div>2 × layers × kv_heads × head_dim × bytes_per_element</div>
+                      <div className="text-foreground mt-1 text-[11px]">
+                        2 × {layers} × {kvHeads} × {headDim} × {BYTES_PER_KV_ELEMENT[kvPrecision]} B = {kvCachePerTokenBytes.toLocaleString()} B ({kvCachePerTokenKb.toFixed(2)} KB)
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </CardContent>
             </Card>
 
@@ -798,14 +826,25 @@ export function CalculatorPage() {
                   {freeMemoryGb.toFixed(1)} <span className="text-sm font-normal text-muted-foreground">GB</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1.5 pt-0">
-                <div className="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
-                  <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
-                  <div>(gpu_memory × gpus) − weight_memory − overhead</div>
-                  <div className="text-foreground mt-1 text-[11px]">
-                    ({gpuMemoryGb} GB × {gpuCount}) − {weightMemoryGb.toFixed(1)} GB − {overheadGb.toFixed(1)} GB = {freeMemoryGb.toFixed(1)} GB
-                  </div>
-                </div>
+              <CardContent className="pt-0">
+                <Collapsible>
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (Free Memory for KV)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
+                    <span>How is this calculated?</span>
+                    <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                      <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
+                      <div>(gpu_memory × gpus) − weight_memory − overhead</div>
+                      <div className="text-foreground mt-1 text-[11px]">
+                        ({gpuMemoryGb} GB × {gpuCount}) − {weightMemoryGb.toFixed(1)} GB − {overheadGb.toFixed(1)} GB = {freeMemoryGb.toFixed(1)} GB
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </CardContent>
             </Card>
 
@@ -821,14 +860,25 @@ export function CalculatorPage() {
                   <span className="text-sm font-normal text-muted-foreground">tokens</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1.5 pt-0">
-                <div className="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
-                  <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
-                  <div>free_memory ÷ kv_per_token</div>
-                  <div className="text-foreground mt-1 text-[11px]">
-                    {freeMemoryGb.toFixed(1)} GB ÷ {kvCachePerTokenBytes.toLocaleString()} B = {kvCapacityTokens.toLocaleString()} tokens
-                  </div>
-                </div>
+              <CardContent className="pt-0">
+                <Collapsible>
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (KV Capacity)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
+                    <span>How is this calculated?</span>
+                    <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                      <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
+                      <div>free_memory ÷ kv_per_token</div>
+                      <div className="text-foreground mt-1 text-[11px]">
+                        ({freeMemoryGb.toFixed(1)} GB × 10⁹ B/GB) ÷ {kvCachePerTokenBytes.toLocaleString()} B = {kvCapacityTokens.toLocaleString()} tokens
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </CardContent>
             </Card>
 
@@ -848,14 +898,25 @@ export function CalculatorPage() {
                   </span>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-1.5 pt-0">
-                <div className="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
-                  <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
-                  <div>floor(kv_capacity ÷ context_length)</div>
-                  <div className="text-foreground mt-1 text-[11px]">
-                    floor({kvCapacityTokens.toLocaleString()} tokens ÷ {contextLength.toLocaleString()} tokens) = {maxConcurrency} requests
-                  </div>
-                </div>
+              <CardContent className="pt-0">
+                <Collapsible>
+                  <CollapsibleTrigger
+                    aria-label="How is this calculated? (Max Concurrent Requests)"
+                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                  >
+                    <span>How is this calculated?</span>
+                    <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                      <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
+                      <div>floor(kv_capacity ÷ context_length)</div>
+                      <div className="text-foreground mt-1 text-[11px]">
+                        floor({kvCapacityTokens.toLocaleString()} tokens ÷ {contextLength.toLocaleString()} tokens) = {maxConcurrency} requests
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </CardContent>
             </Card>
           </div>

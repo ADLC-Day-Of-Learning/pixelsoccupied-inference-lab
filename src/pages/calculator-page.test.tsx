@@ -95,6 +95,105 @@ describe("CalculatorPage preset dropdowns", () => {
   })
 })
 
+describe("CalculatorPage formula collapsibles and unit display", () => {
+  it("keeps formula details collapsed by default and reveals them upon toggle", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Formula blocks should not be visible by default
+    expect(screen.queryByText(/parameters × bytes_per_param/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/2 × layers × kv_heads × head_dim/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\(gpu_memory × gpus\) − weight_memory − overhead/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/free_memory ÷ kv_per_token/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/floor\(kv_capacity ÷ context_length\)/i)).not.toBeInTheDocument()
+
+    // Exactly 5 toggles, one for each output metric card
+    const toggles = screen.getAllByRole("button", { name: /how is this calculated\?/i })
+    expect(toggles).toHaveLength(5)
+
+    // Expanding the first toggle reveals the weight memory formula
+    await user.click(toggles[0])
+    expect(await screen.findByText(/parameters × bytes_per_param/i)).toBeVisible()
+
+    // Clicking again collapses it
+    await user.click(toggles[0])
+    expect(screen.queryByText(/parameters × bytes_per_param/i)).not.toBeInTheDocument()
+  })
+
+  it("displays explicit conversion units in the KV capacity formula when toggles are expanded", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const toggles = screen.getAllByRole("button", { name: /how is this calculated\?/i })
+    for (const toggle of toggles) {
+      await user.click(toggle)
+    }
+
+    // Verify all formula blocks become visible
+    expect(await screen.findByText(/parameters × bytes_per_param/i)).toBeVisible()
+    expect(await screen.findByText(/2 × layers × kv_heads × head_dim/i)).toBeVisible()
+    expect(await screen.findByText(/\(gpu_memory × gpus\) − weight_memory − overhead/i)).toBeVisible()
+    expect(await screen.findByText(/free_memory ÷ kv_per_token/i)).toBeVisible()
+    expect(await screen.findByText(/floor\(kv_capacity ÷ context_length\)/i)).toBeVisible()
+
+    // Verify the formula indicates the 10^9 conversion factor
+    const conversionNotice = await screen.findByText(/10[⁹9] B\/GB/)
+    expect(conversionNotice).toBeInTheDocument()
+  })
+
+  it("allows opening and closing individual metric formula toggles independently", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const toggles = screen.getAllByRole("button", { name: /how is this calculated\?/i })
+
+    // Open only the second card (KV cache per token)
+    await user.click(toggles[1])
+    expect(await screen.findByText(/2 × layers × kv_heads × head_dim/i)).toBeVisible()
+    expect(screen.queryByText(/parameters × bytes_per_param/i)).not.toBeInTheDocument()
+
+    // Open the fifth card (Max concurrent requests)
+    await user.click(toggles[4])
+    expect(await screen.findByText(/floor\(kv_capacity ÷ context_length\)/i)).toBeVisible()
+
+    // Close the second card
+    await user.click(toggles[1])
+    expect(screen.queryByText(/2 × layers × kv_heads × head_dim/i)).not.toBeInTheDocument()
+    // Fifth card is still open
+    expect(screen.getByText(/floor\(kv_capacity ÷ context_length\)/i)).toBeVisible()
+  })
+
+  it("provides distinct accessible names for each formula toggle while preserving visible label", () => {
+    render(<CalculatorPage />)
+
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (Weight Memory)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (KV Cache per Token)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (Free Memory for KV)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (KV Capacity)",
+      })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", {
+        name: "How is this calculated? (Max Concurrent Requests)",
+      })
+    ).toBeInTheDocument()
+  })
+})
+
 describe("CalculatorPage GPU count segmented control", () => {
   it("renders 1, 2, 4, 8 options with 1 selected by default and updates selection on click", async () => {
     const user = userEvent.setup()
@@ -122,6 +221,10 @@ describe("CalculatorPage GPU count segmented control", () => {
     expect(btn4).toHaveAttribute("data-state", "on")
 
     // Verify formula card updated for 4 GPUs (e.g. "80 GB × 4")
+    const freeMemToggle = screen.getByRole("button", {
+      name: "How is this calculated? (Free Memory for KV)",
+    })
+    await user.click(freeMemToggle)
     expect(screen.getByText(/80 GB × 4/i)).toBeInTheDocument()
   })
 
@@ -144,6 +247,11 @@ describe("CalculatorPage GPU count segmented control", () => {
     await user.keyboard(" ")
     expect(btn2).toHaveAttribute("data-state", "on")
     expect(btn1).toHaveAttribute("data-state", "off")
+
+    const freeMemToggle = screen.getByRole("button", {
+      name: "How is this calculated? (Free Memory for KV)",
+    })
+    await user.click(freeMemToggle)
     expect(screen.getByText(/80 GB × 2/i)).toBeInTheDocument()
   })
 })
