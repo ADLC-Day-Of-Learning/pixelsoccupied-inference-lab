@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest"
 import { render, screen, fireEvent, cleanup } from "@testing-library/react"
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { PlayPage } from "./play-page"
+import { LEVELS } from "@/play/levels"
 
 describe("PlayPage end-to-end integration", () => {
   beforeEach(() => {
@@ -18,7 +19,7 @@ describe("PlayPage end-to-end integration", () => {
 
     // 1. Initial state: Level picker with placeholder level
     expect(screen.getByText("Inference Play")).toBeInTheDocument()
-    expect(screen.getByText("0 of 1 complete")).toBeInTheDocument()
+    expect(screen.getByText(`0 of ${LEVELS.length} complete`)).toBeInTheDocument()
 
     const level0Card = screen.getByTestId("level-card-how-it-works")
     expect(level0Card).toHaveAttribute("data-level-state", "available")
@@ -47,7 +48,7 @@ describe("PlayPage end-to-end integration", () => {
     fireEvent.click(backButton)
 
     // 7. Picker reflects completed status
-    expect(screen.getByText("1 of 1 complete")).toBeInTheDocument()
+    expect(screen.getByText(`1 of ${LEVELS.length} complete`)).toBeInTheDocument()
     expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
       "data-level-state",
       "completed"
@@ -57,7 +58,7 @@ describe("PlayPage end-to-end integration", () => {
 
     // 8. Simulate reload by remounting PlayPage: progress persists from localStorage
     render(<PlayPage />)
-    expect(screen.getByText("1 of 1 complete")).toBeInTheDocument()
+    expect(screen.getByText(`1 of ${LEVELS.length} complete`)).toBeInTheDocument()
     expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
       "data-level-state",
       "completed"
@@ -68,7 +69,7 @@ describe("PlayPage end-to-end integration", () => {
     fireEvent.click(resetButton)
     const confirmButton = screen.getByRole("button", { name: /confirm reset/i })
     fireEvent.click(confirmButton)
-    expect(screen.getByText("0 of 1 complete")).toBeInTheDocument()
+    expect(screen.getByText(`0 of ${LEVELS.length} complete`)).toBeInTheDocument()
     expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
       "data-level-state",
       "available"
