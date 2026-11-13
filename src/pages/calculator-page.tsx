@@ -46,6 +46,19 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+const MODEL_PRESET_ITEMS: Record<string, string> = {
+  "llama-3-8b": "Llama-3-8B (8B, 32L, 8KV, 128D)",
+  "llama-3-70b": "Llama-3-70B (70B, 80L, 8KV, 128D)",
+  custom: "Custom Dimensions",
+}
+
+const GPU_PRESET_ITEMS: Record<string, string> = {
+  "a100-80gb": "NVIDIA A100 80GB",
+  "h100-80gb": "NVIDIA H100 80GB",
+  "l40s-48gb": "NVIDIA L40S 48GB",
+  custom: "Custom Memory",
+}
+
 export function CalculatorPage() {
   // Model state
   const [modelPreset, setModelPreset] = React.useState<string>("llama-3-8b")
@@ -186,14 +199,17 @@ export function CalculatorPage() {
                 <Select
                   value={modelPreset}
                   onValueChange={handleModelPresetChange}
+                  items={MODEL_PRESET_ITEMS}
                 >
                   <SelectTrigger id="model-preset" className="w-full">
                     <SelectValue placeholder="Select a preset" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="llama-3-8b">Llama-3-8B (8B, 32L, 8KV, 128D)</SelectItem>
-                    <SelectItem value="llama-3-70b">Llama-3-70B (70B, 80L, 8KV, 128D)</SelectItem>
-                    <SelectItem value="custom">Custom Dimensions</SelectItem>
+                    {Object.entries(MODEL_PRESET_ITEMS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -318,15 +334,17 @@ export function CalculatorPage() {
                 <Select
                   value={gpuPreset}
                   onValueChange={handleGpuPresetChange}
+                  items={GPU_PRESET_ITEMS}
                 >
                   <SelectTrigger id="gpu-preset" className="w-full">
                     <SelectValue placeholder="Select GPU preset" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="a100-80gb">NVIDIA A100 80GB</SelectItem>
-                    <SelectItem value="h100-80gb">NVIDIA H100 80GB</SelectItem>
-                    <SelectItem value="l40s-48gb">NVIDIA L40S 48GB</SelectItem>
-                    <SelectItem value="custom">Custom Memory</SelectItem>
+                    {Object.entries(GPU_PRESET_ITEMS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
