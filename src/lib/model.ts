@@ -357,7 +357,7 @@ export function estimatePrefillTime(
   if (typeof arg1 === "object") {
     const parameters = Math.max(0, arg1.parameters)
     const promptTokens = Math.max(0, arg1.promptTokens)
-    const gpuCount = Math.max(1, arg1.gpuCount ?? 1)
+    const gpuCount = arg1.gpuCount ?? 1
     const utilization =
       arg1.computeUtilization !== undefined
         ? arg1.computeUtilization
@@ -377,7 +377,7 @@ export function estimatePrefillTime(
   const parameters = Math.max(0, arg1)
   const promptTokens = Math.max(0, arg2 ?? 0)
   const peakFlops = Math.max(0, arg3 ?? 0)
-  const gpuCount = Math.max(1, arg4 ?? 1)
+  const gpuCount = arg4 ?? 1
   const utilization =
     arg5 !== undefined ? arg5 : DEFAULT_COMPUTE_UTILIZATION
 
@@ -434,7 +434,7 @@ export function estimateDecodeStepTime(
   if (typeof arg1 === "object") {
     const weightBytes = Math.max(0, arg1.weightBytes)
     const kvBytesRead = Math.max(0, arg1.kvBytesRead)
-    const gpuCount = Math.max(1, arg1.gpuCount ?? 1)
+    const gpuCount = arg1.gpuCount ?? 1
     const utilization =
       arg1.bandwidthUtilization !== undefined
         ? arg1.bandwidthUtilization
@@ -457,7 +457,7 @@ export function estimateDecodeStepTime(
   const weightBytes = Math.max(0, arg1)
   const kvBytesRead = Math.max(0, arg2 ?? 0)
   const bandwidthBytesPerSec = Math.max(0, arg3 ?? 0)
-  const gpuCount = Math.max(1, arg4 ?? 1)
+  const gpuCount = arg4 ?? 1
   const utilization =
     arg5 !== undefined ? arg5 : DEFAULT_BANDWIDTH_UTILIZATION
 

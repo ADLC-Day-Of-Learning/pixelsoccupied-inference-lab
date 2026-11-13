@@ -279,6 +279,9 @@ describe("model formulas", () => {
       expect(estimatePrefillTime({ parameters: 8e9, promptTokens: 0, peakFlops: 989e12 })).toBe(0)
       expect(estimatePrefillTime({ parameters: 8e9, promptTokens: 1024, peakFlops: 0 })).toBe(0)
       expect(estimatePrefillTime({ parameters: 8e9, promptTokens: 1024, peakFlops: 989e12, computeUtilization: 0 })).toBe(0)
+      expect(estimatePrefillTime({ parameters: 8e9, promptTokens: 1024, peakFlops: 989e12, gpuCount: 0 })).toBe(0)
+      expect(estimatePrefillTime({ parameters: 8e9, promptTokens: 1024, peakFlops: 989e12, gpuCount: -1 })).toBe(0)
+      expect(estimatePrefillTime(8e9, 1024, 989e12, 0)).toBe(0)
     })
 
     it("exports DEFAULT_COMPUTE_UTILIZATION as 0.5", () => {
@@ -355,6 +358,9 @@ describe("model formulas", () => {
       expect(estimateDecodeStepTime({ weightBytes: 0, kvBytesRead: 0, memoryBandwidthBytesPerSec: 2.0e12 })).toBe(0)
       expect(estimateDecodeStepTime({ weightBytes: 16e9, kvBytesRead: 0.4e9, memoryBandwidthBytesPerSec: 0 })).toBe(0)
       expect(estimateDecodeStepTime({ weightBytes: 16e9, kvBytesRead: 0.4e9, memoryBandwidthBytesPerSec: 2.0e12, bandwidthUtilization: 0 })).toBe(0)
+      expect(estimateDecodeStepTime({ weightBytes: 16e9, kvBytesRead: 0.4e9, memoryBandwidthBytesPerSec: 2.0e12, gpuCount: 0 })).toBe(0)
+      expect(estimateDecodeStepTime({ weightBytes: 16e9, kvBytesRead: 0.4e9, memoryBandwidthBytesPerSec: 2.0e12, gpuCount: -1 })).toBe(0)
+      expect(estimateDecodeStepTime(16e9, 0.4e9, 2.0e12, 0)).toBe(0)
     })
 
     it("exports DEFAULT_BANDWIDTH_UTILIZATION as 0.7", () => {
