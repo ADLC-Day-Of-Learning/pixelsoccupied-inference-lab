@@ -5,7 +5,6 @@ import {
   Cpu,
   Database,
   HardDrive,
-  Info,
   Server,
   Users,
 } from "lucide-react"
@@ -159,19 +158,6 @@ export function CalculatorPage() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
-      {/* Estimation disclaimer note */}
-      <Alert className="border-border bg-muted/30">
-        <Info className="size-4 text-muted-foreground" />
-        <AlertTitle className="text-sm font-medium">
-          Estimates, not benchmarks
-        </AlertTitle>
-        <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
-          Results are rough ballparks. Real numbers depend on runtime framework
-          overheads (vLLM, TensorRT-LLM), CUDA graph allocations, and kernel
-          workspaces. Memory uses decimal gigabytes (1 GB = 1e9 bytes).
-        </AlertDescription>
-      </Alert>
-
       {/* Main Grid: Inputs on Left/Top, Outputs on Right/Bottom */}
       <div className="grid gap-6 lg:grid-cols-12">
         {/* INPUTS SECTION */}
@@ -563,6 +549,10 @@ export function CalculatorPage() {
               </CardContent>
             </Card>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.
+          </p>
         </div>
       </div>
     </div>
