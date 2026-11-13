@@ -19,6 +19,7 @@ import {
   calculateMemoryBreakdown,
   MODEL_PRESETS,
   GPU_PRESETS,
+  CONTEXT_LENGTH_PRESETS,
   BYTES_PER_PARAM,
   BYTES_PER_KV_ELEMENT,
   BYTES_IN_GB,
@@ -79,7 +80,11 @@ export function CalculatorPage() {
   const [gpuCount, setGpuCount] = React.useState<number>(1)
 
   // Workload state
+  const [contextPreset, setContextPreset] = React.useState<string>("4k")
   const [contextLength, setContextLength] = React.useState<number>(4096)
+  const [customContextInput, setCustomContextInput] =
+    React.useState<string>("4096")
+  const [contextError, setContextError] = React.useState<string | null>(null)
   const [overheadGb, setOverheadGb] = React.useState<number>(8) // default 10% of 1x80GB
 
   // Handle Model Preset selection
@@ -111,6 +116,45 @@ export function CalculatorPage() {
     const validCount = Math.min(8, Math.max(1, count || 1))
     setGpuCount(validCount)
     setOverheadGb(Number(((gpuMemoryGb * validCount) * 0.1).toFixed(1)))
+  }
+
+  // Handle Context Length Preset selection
+  const handleContextPresetChange = (presetId: string) => {
+    if (!presetId) return
+    setContextPreset(presetId)
+    if (presetId === "custom") {
+      const val = parseInt(customContextInput, 10)
+      if (isNaN(val) || val <= 0) {
+        setContextError("Context length must be greater than 0")
+        setContextLength(0)
+      } else {
+        setContextError(null)
+        setContextLength(val)
+      }
+    } else {
+      setContextError(null)
+      const preset = CONTEXT_LENGTH_PRESETS.find((p) => p.id === presetId)
+      if (preset) {
+        setContextLength(preset.tokens)
+        setCustomContextInput(String(preset.tokens))
+      }
+    }
+  }
+
+  // Handle Custom Context Length input change
+  const handleCustomContextChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const raw = e.target.value
+    setCustomContextInput(raw)
+    const val = parseInt(raw, 10)
+    if (isNaN(val) || val <= 0) {
+      setContextError("Context length must be greater than 0")
+      setContextLength(0)
+    } else {
+      setContextError(null)
+      setContextLength(val)
+    }
   }
 
   // Calculated values from model.ts formulas
@@ -410,37 +454,79 @@ export function CalculatorPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label id="context-preset-label" htmlFor="context-preset">
+                  Context Length
+                </Label>
+                <ToggleGroup
+                  id="context-preset"
+                  aria-labelledby="context-preset-label"
+                  type="single"
+                  value={contextPreset}
+                  onValueChange={handleContextPresetChange}
+                  variant="outline"
+                  className="flex flex-wrap gap-1"
+                >
+                  {CONTEXT_LENGTH_PRESETS.map((p) => (
+                    <ToggleGroupItem
+                      key={p.id}
+                      value={p.id}
+                    >
+                      {p.label}
+                    </ToggleGroupItem>
+                  ))}
+                  <ToggleGroupItem value="custom">
+                    Custom
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+
+              {contextPreset === "custom" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="context-len">Context Length (Tokens)</Label>
                   <Input
                     id="context-len"
                     type="number"
-                    min={128}
+                    min={1}
                     step={256}
-                    value={contextLength}
-                    onChange={(e) =>
-                      setContextLength(parseInt(e.target.value, 10) || 0)
+                    value={customContextInput}
+                    aria-invalid={contextError !== null}
+                    aria-describedby={
+                      contextError ? "context-len-error" : undefined
                     }
+                    onChange={handleCustomContextChange}
                   />
+                  {contextError && (
+                    <p
+                      id="context-len-error"
+                      className="text-xs text-destructive font-medium"
+                      role="alert"
+                    >
+                      {contextError}
+                    </p>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="overhead-gb">Runtime Overhead (GB)</Label>
-                  <Input
-                    id="overhead-gb"
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={overheadGb}
-                    aria-describedby="overhead-gb-help"
-                    onChange={(e) =>
-                      setOverheadGb(parseFloat(e.target.value) || 0)
-                    }
-                  />
-                  <p id="overhead-gb-help" className="text-[11px] text-muted-foreground">
-                    Default is 10% of total GPU memory.
-                  </p>
-                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="overhead-gb">Runtime Overhead (GB)</Label>
+                <Input
+                  id="overhead-gb"
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={overheadGb}
+                  aria-describedby="overhead-gb-help"
+                  onChange={(e) =>
+                    setOverheadGb(parseFloat(e.target.value) || 0)
+                  }
+                />
+                <p
+                  id="overhead-gb-help"
+                  className="text-[11px] text-muted-foreground"
+                >
+                  Default is 10% of total GPU memory.
+                </p>
               </div>
             </CardContent>
           </Card>

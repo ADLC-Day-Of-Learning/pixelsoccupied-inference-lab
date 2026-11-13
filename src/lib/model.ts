@@ -100,6 +100,20 @@ export const GPU_PRESETS: GpuPreset[] = [
   },
 ]
 
+export interface ContextLengthPreset {
+  id: string
+  label: string
+  tokens: number
+}
+
+export const CONTEXT_LENGTH_PRESETS: ContextLengthPreset[] = [
+  { id: "2k", label: "2K", tokens: 2048 },
+  { id: "4k", label: "4K", tokens: 4096 },
+  { id: "8k", label: "8K", tokens: 8192 },
+  { id: "32k", label: "32K", tokens: 32768 },
+  { id: "128k", label: "128K", tokens: 131072 },
+]
+
 /**
  * Weight memory in bytes = parameters × bytes per parameter
  * (FP16 = 2, FP8 = 1, INT4 = 0.5)
