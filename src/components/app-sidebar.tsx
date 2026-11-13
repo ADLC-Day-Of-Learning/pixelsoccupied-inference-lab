@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
 
-export type AppView = "calculator" | "play"
+export type AppView = "play" | "lab"
 
 interface AppSidebarProps {
   currentView: AppView
@@ -21,6 +21,9 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ currentView, onSelectView }: AppSidebarProps) {
+  const isLabActive = currentView === "lab"
+  const isPlayActive = currentView === "play"
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b px-4 py-3">
@@ -51,28 +54,22 @@ export function AppSidebar({ currentView, onSelectView }: AppSidebarProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={currentView === "calculator"}
-                  onClick={() => onSelectView("calculator")}
-                  tooltip="Calculator"
+                  isActive={isPlayActive}
+                  onClick={() => onSelectView("play")}
+                  tooltip="Play"
                 >
-                  <Calculator />
-                  <span>Calculator</span>
+                  <Gamepad2 />
+                  <span>Play</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={currentView === "play"}
-                  onClick={() => onSelectView("play")}
-                  tooltip="Play (Coming Soon)"
+                  isActive={isLabActive}
+                  onClick={() => onSelectView("lab")}
+                  tooltip="Lab"
                 >
-                  <Gamepad2 />
-                  <span>Play</span>
-                  <Badge
-                    variant="outline"
-                    className="ml-auto text-[10px] group-data-[collapsible=icon]:hidden"
-                  >
-                    Soon
-                  </Badge>
+                  <Calculator />
+                  <span>Lab</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

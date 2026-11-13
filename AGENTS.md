@@ -7,7 +7,7 @@ Guidance for anyone (human or agent) changing this repository.
 Inference Lab is a static single-page web app for learning how LLM inference
 serving works. It has two views that share one set of formulas:
 
-- **Calculator**: the user enters a model, precision, GPU and workload, and sees
+- **Lab**: the user enters a model, precision, GPU and workload, and sees
   memory, KV cache, latency, throughput and cost estimates.
 - **Play**: short levels that teach one concept each (sampling, prefill vs
   decode, KV cache, batching, quantization), built on the same formulas.
@@ -82,6 +82,7 @@ src/
   components/          # app components (app-sidebar, site-header, ...)
   components/ui/       # generated shadcn components (do not hand-edit)
   pages/               # calculator-page.tsx, play-page.tsx
+  play/                # Play mode shell, level components, and progress tracking
   lib/model.ts         # pure formulas
   lib/model.test.ts    # Vitest tests for the formulas
 ```

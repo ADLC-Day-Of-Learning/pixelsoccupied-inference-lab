@@ -327,6 +327,9 @@ describe("Calculator disclaimers and unit notes", () => {
     expect(screen.queryByText(/estimates, not benchmarks/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/1 GB = 1e9 bytes/i)).not.toBeInTheDocument()
 
+    // Switch to Lab view to show calculator outputs
+    fireEvent.click(screen.getByRole("button", { name: /^lab$/i }))
+
     // Single consolidated disclaimer should appear under results
     expect(
       screen.getByText("Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.")
