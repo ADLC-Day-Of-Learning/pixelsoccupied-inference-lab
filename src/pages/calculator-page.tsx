@@ -178,34 +178,7 @@ export function CalculatorPage() {
     ? `GPU memory usage: weights require ${formatGb(memoryBreakdown.weightsGb)} GB and runtime overhead requires ${formatGb(memoryBreakdown.overheadGb)} GB, exceeding total GPU memory of ${formatGb(memoryBreakdown.totalGpuMemoryGb)} GB by ${shortfallLabel}.`
     : `GPU memory usage: ${formatGb(memoryBreakdown.weightsGb)} GB weights (${memoryBreakdown.weightsPercent.toFixed(1)}%), ${formatGb(memoryBreakdown.overheadGb)} GB runtime overhead (${memoryBreakdown.overheadPercent.toFixed(1)}%), and ${formatGb(memoryBreakdown.freeKvGb)} GB free for KV cache (${memoryBreakdown.freeKvPercent.toFixed(1)}%) out of ${formatGb(memoryBreakdown.totalGpuMemoryGb)} GB total GPU memory.`
 
-  // Calculate segment widths for the stacked bar
-  let barWeightsPercent = 0
-  let barOverheadPercent = 0
-  let barFreeKvPercent = 0
-  let barOverflowPercent = 0
 
-  if (!memoryBreakdown.overflow) {
-    barWeightsPercent = memoryBreakdown.weightsPercent
-    barOverheadPercent = memoryBreakdown.overheadPercent
-    barFreeKvPercent = memoryBreakdown.freeKvPercent
-  } else {
-    const totalNeededGb = memoryBreakdown.totalNeededGb
-    if (totalNeededGb > 0) {
-      barOverflowPercent = (memoryBreakdown.overflowGb / totalNeededGb) * 100
-      if (memoryBreakdown.weightsGb <= memoryBreakdown.totalGpuMemoryGb) {
-        barWeightsPercent = (memoryBreakdown.weightsGb / totalNeededGb) * 100
-        barOverheadPercent =
-          ((memoryBreakdown.totalGpuMemoryGb - memoryBreakdown.weightsGb) /
-            totalNeededGb) *
-          100
-      } else {
-        const capacityShare = 100 - barOverflowPercent
-        barWeightsPercent =
-          (memoryBreakdown.weightsGb / totalNeededGb) * capacityShare
-        barOverheadPercent = Math.max(0, capacityShare - barWeightsPercent)
-      }
-    }
-  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -528,61 +501,75 @@ export function CalculatorPage() {
                 <span className="sr-only">{memoryTextAlternative}</span>
 
                 <div className="flex h-8 w-full overflow-hidden rounded-md border border-border bg-muted/40 text-xs select-none">
-                  {/* Weights segment */}
-                  {barWeightsPercent > 0 && (
-                    <div
-                      style={{ width: `${barWeightsPercent}%` }}
-                      className="flex items-center justify-center bg-blue-600 text-white font-medium transition-all dark:bg-blue-500"
-                      title={`Weights: ${formatGb(memoryBreakdown.weightsGb)} GB`}
-                    >
-                      {barWeightsPercent >= 12 && (
-                        <span className="truncate px-1">
-                          {formatGb(memoryBreakdown.weightsGb)} GB
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {memoryBreakdown.segments.map((segment) => {
+                    if (segment.percentage <= 0) return null
 
-                  {/* Runtime overhead segment */}
-                  {barOverheadPercent > 0 && (
-                    <div
-                      style={{ width: `${barOverheadPercent}%` }}
-                      className="flex items-center justify-center bg-amber-500 text-zinc-950 font-medium transition-all dark:bg-amber-400"
-                      title={`Runtime Overhead: ${formatGb(memoryBreakdown.overheadGb)} GB`}
-                    >
-                      {barOverheadPercent >= 10 && (
-                        <span className="truncate px-1">
-                          {formatGb(memoryBreakdown.overheadGb)} GB
-                        </span>
-                      )}
-                    </div>
-                  )}
+                    if (segment.id === "weights") {
+                      return (
+                        <div
+                          key={segment.id}
+                          style={{ width: `${segment.percentage}%` }}
+                          className="flex items-center justify-center bg-blue-600 text-white font-medium transition-all dark:bg-blue-500"
+                          title={`Weights: ${formatGb(memoryBreakdown.weightsGb)} GB`}
+                        >
+                          {segment.percentage >= 12 && (
+                            <span className="truncate px-1">
+                              {formatGb(memoryBreakdown.weightsGb)} GB
+                            </span>
+                          )}
+                        </div>
+                      )
+                    }
 
-                  {/* KV cache (free) segment - when it fits */}
-                  {!memoryBreakdown.overflow && barFreeKvPercent > 0 && (
-                    <div
-                      style={{ width: `${barFreeKvPercent}%` }}
-                      className="flex items-center justify-center bg-emerald-600 text-white font-medium transition-all dark:bg-emerald-500"
-                      title={`KV Cache (free): ${formatGb(memoryBreakdown.freeKvGb)} GB`}
-                    >
-                      {barFreeKvPercent >= 10 && (
-                        <span className="truncate px-1">
-                          {formatGb(memoryBreakdown.freeKvGb)} GB
-                        </span>
-                      )}
-                    </div>
-                  )}
+                    if (segment.id === "overhead") {
+                      return (
+                        <div
+                          key={segment.id}
+                          style={{ width: `${segment.percentage}%` }}
+                          className="flex items-center justify-center bg-amber-500 text-zinc-950 font-medium transition-all dark:bg-amber-400"
+                          title={`Runtime Overhead: ${formatGb(memoryBreakdown.overheadGb)} GB`}
+                        >
+                          {segment.percentage >= 10 && (
+                            <span className="truncate px-1">
+                              {formatGb(memoryBreakdown.overheadGb)} GB
+                            </span>
+                          )}
+                        </div>
+                      )
+                    }
 
-                  {/* Overflow shortfall segment - in destructive color */}
-                  {memoryBreakdown.overflow && barOverflowPercent > 0 && (
-                    <div
-                      style={{ width: `${barOverflowPercent}%` }}
-                      className="flex items-center justify-center bg-destructive text-destructive-foreground font-semibold transition-all"
-                      title={`Shortfall: ${shortfallLabel}`}
-                    >
-                      <span className="truncate px-1.5">{shortfallLabel}</span>
-                    </div>
-                  )}
+                    if (segment.id === "freeKv") {
+                      return (
+                        <div
+                          key={segment.id}
+                          style={{ width: `${segment.percentage}%` }}
+                          className="flex items-center justify-center bg-emerald-600 text-white font-medium transition-all dark:bg-emerald-500"
+                          title={`KV Cache (free): ${formatGb(memoryBreakdown.freeKvGb)} GB`}
+                        >
+                          {segment.percentage >= 10 && (
+                            <span className="truncate px-1">
+                              {formatGb(memoryBreakdown.freeKvGb)} GB
+                            </span>
+                          )}
+                        </div>
+                      )
+                    }
+
+                    if (segment.id === "overflow") {
+                      return (
+                        <div
+                          key={segment.id}
+                          style={{ width: `${segment.percentage}%` }}
+                          className="flex items-center justify-center bg-destructive text-destructive-foreground font-semibold transition-all"
+                          title={`Shortfall: ${shortfallLabel}`}
+                        >
+                          <span className="truncate px-1.5">{shortfallLabel}</span>
+                        </div>
+                      )
+                    }
+
+                    return null
+                  })}
                 </div>
               </div>
 

@@ -390,7 +390,7 @@ export function calculateMemoryBreakdown(
   let overheadBytes = 0
 
   if (typeof arg1 === "object") {
-    const gpuCount = Math.max(1, arg1.gpuCount ?? 1)
+    const gpuCount = Math.max(0, arg1.gpuCount ?? 1)
     const singleGpuBytes = Math.max(0, arg1.gpuMemoryBytes ?? 0)
     totalGpuMemoryBytes = Math.max(
       0,
@@ -437,6 +437,9 @@ export function calculateMemoryBreakdown(
   let freeKvPercent = 0
   let overflowPercent = 0
 
+  let fittedWeightsBytes = weightsBytes
+  let fittedOverheadBytes = overheadBytes
+
   if (!overflow) {
     if (totalGpuMemoryBytes > 0) {
       weightsPercent = (weightsBytes / totalGpuMemoryBytes) * 100
@@ -444,9 +447,15 @@ export function calculateMemoryBreakdown(
       freeKvPercent = (freeKvBytes / totalGpuMemoryBytes) * 100
     }
   } else {
+    fittedWeightsBytes = Math.min(weightsBytes, totalGpuMemoryBytes)
+    fittedOverheadBytes = Math.min(
+      overheadBytes,
+      Math.max(0, totalGpuMemoryBytes - fittedWeightsBytes)
+    )
+
     if (totalNeededBytes > 0) {
-      weightsPercent = (weightsBytes / totalNeededBytes) * 100
-      overheadPercent = (overheadBytes / totalNeededBytes) * 100
+      weightsPercent = (fittedWeightsBytes / totalNeededBytes) * 100
+      overheadPercent = (fittedOverheadBytes / totalNeededBytes) * 100
       overflowPercent = (overflowBytes / totalNeededBytes) * 100
     }
   }
@@ -479,15 +488,15 @@ export function calculateMemoryBreakdown(
         {
           id: "weights",
           label: "Weights",
-          bytes: weightsBytes,
-          gb: weightsGb,
+          bytes: fittedWeightsBytes,
+          gb: fittedWeightsBytes / BYTES_IN_GB,
           percentage: weightsPercent,
         },
         {
           id: "overhead",
           label: "Runtime Overhead",
-          bytes: overheadBytes,
-          gb: overheadGb,
+          bytes: fittedOverheadBytes,
+          gb: fittedOverheadBytes / BYTES_IN_GB,
           percentage: overheadPercent,
         },
         {
