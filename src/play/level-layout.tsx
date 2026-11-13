@@ -96,7 +96,6 @@ export function LevelLayout({
               size="sm"
               onClick={onBack}
               className="gap-1.5"
-              aria-label="Back to levels"
             >
               <ArrowLeft className="size-4" />
               <span>Back to levels</span>
@@ -136,7 +135,6 @@ export function LevelLayout({
                 size="sm"
                 onClick={onNext}
                 className="gap-1.5"
-                aria-label="Next level"
               >
                 <span>Next level</span>
                 <ArrowRight className="size-4" />

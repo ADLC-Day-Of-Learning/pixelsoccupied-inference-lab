@@ -51,6 +51,9 @@ describe("LevelPicker", () => {
     // Check header and overall progress display
     expect(screen.getByText(/Inference Play/i)).toBeInTheDocument()
     expect(screen.getByText("1 of 3 complete")).toBeInTheDocument()
+    expect(
+      screen.getByRole("progressbar", { name: /overall progress/i })
+    ).toBeInTheDocument()
 
     // Check Level 0 card is completed
     const card0 = screen.getByTestId("level-card-how-it-works")

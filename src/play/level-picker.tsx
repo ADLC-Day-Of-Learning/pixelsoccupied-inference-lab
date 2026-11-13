@@ -65,6 +65,7 @@ export function LevelPicker({
               className="h-full bg-primary transition-all duration-300"
               style={{ width: `${progressPct}%` }}
               role="progressbar"
+              aria-label="Overall Progress"
               aria-valuenow={completedCount}
               aria-valuemin={0}
               aria-valuemax={totalLevels}
@@ -79,7 +80,6 @@ export function LevelPicker({
                       variant="ghost"
                       size="sm"
                       className="h-6 text-[11px] text-muted-foreground hover:text-destructive px-1.5 gap-1"
-                      aria-label="Reset progress"
                     >
                       <RotateCcw className="size-3" />
                       <span>Reset progress</span>
