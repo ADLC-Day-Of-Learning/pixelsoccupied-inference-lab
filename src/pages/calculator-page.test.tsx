@@ -1,14 +1,8 @@
-// @vitest-environment jsdom
-import "@testing-library/jest-dom/vitest"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeAll, describe, it, expect } from "vitest"
+import { beforeAll, describe, it, expect } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
 import { App } from "@/App"
-
-afterEach(() => {
-  cleanup()
-})
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
