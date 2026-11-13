@@ -159,6 +159,11 @@ describe("CalculatorPage context length presets", () => {
     const user = userEvent.setup()
     render(<CalculatorPage />)
 
+    // Verify radiogroup accessible name
+    expect(
+      screen.getByRole("radiogroup", { name: /context length/i })
+    ).toBeInTheDocument()
+
     // Verify default selection is 4K (4096 tokens)
     const preset4k = screen.getByRole("radio", { name: /4k/i })
     expect(preset4k).toHaveAttribute("data-state", "on")

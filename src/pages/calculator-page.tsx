@@ -432,8 +432,12 @@ export function CalculatorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Context Length</Label>
+                <Label id="context-preset-label" htmlFor="context-preset">
+                  Context Length
+                </Label>
                 <ToggleGroup
+                  id="context-preset"
+                  aria-labelledby="context-preset-label"
                   type="single"
                   value={contextPreset}
                   onValueChange={handleContextPresetChange}
@@ -444,12 +448,11 @@ export function CalculatorPage() {
                     <ToggleGroupItem
                       key={p.id}
                       value={p.id}
-                      aria-label={p.label}
                     >
                       {p.label}
                     </ToggleGroupItem>
                   ))}
-                  <ToggleGroupItem value="custom" aria-label="Custom">
+                  <ToggleGroupItem value="custom">
                     Custom
                   </ToggleGroupItem>
                 </ToggleGroup>
