@@ -32,6 +32,15 @@ It is deployed to GitHub Pages as static files.
   no DOM). UI code and game levels import from it; never duplicate a formula.
 - **Every formula is tested.** Any change to `src/lib/model.ts` adds or updates
   tests in `src/lib/model.test.ts`.
+- **Handle non-positive inputs safely without artificial clamping.** Pure formulas
+  in `src/lib/model.ts` must return `0` (or a safe zero result) whenever any
+  input parameter represents non-positive capacity or invalid dimensions (e.g.,
+  `gpuCount <= 0`, `parameters <= 0`, `contextLength <= 0`). Never use
+  `Math.max(1, ...)` or artificial clamps on count/dimension parameters to
+  prevent division by zero; non-positive inputs indicate zero capacity or an
+  invalid request, not 1 unit of capacity. Guard with early returns
+  (`if (effectiveFlops <= 0) return 0`) or let non-positive effective capacity
+  return 0.
 - **Show the formula.** Every calculator output displays the formula used and
   the values plugged in, so the user can check the math by hand.
 - **Units are explicit.** Every displayed number has a unit (GB, ms, tokens/s,
@@ -60,6 +69,12 @@ Sanity checks the tests must include:
 - 70B params at FP16 → 140 GB of weights
 - Llama-3-8B (32 layers, 8 KV heads, head dim 128) at FP16 → 131,072 bytes
   (128 KiB) of KV cache per token
+- **Boundary sanity checks:** For every formula in `src/lib/model.ts`, the
+  corresponding test suite in `src/lib/model.test.ts` must include a `handles
+  zero or non-positive inputs safely` test block verifying that passing `0` and
+  negative values for *each* numeric parameter (including optional parameters
+  such as `gpuCount`) returns `0` safely without throwing, dividing by zero, or
+  returning `NaN`/`Infinity`.
 
 ## Layout
 
