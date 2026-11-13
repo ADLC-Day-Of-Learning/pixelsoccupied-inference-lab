@@ -136,6 +136,36 @@ describe("model formulas", () => {
       expect(result.fits).toBe(true)
       expect(result.verdict).toBe("Fits")
     })
+
+    it("verifies model does NOT fit when weights exceed available memory after overhead", () => {
+      // 75 GB weights fit in 80 GB GPU, but exceed 72 GB available after 8 GB overhead
+      const result = evaluateMemoryFit({
+        parameters: 37.5e9, // 37.5B * 2 bytes (FP16) = 75 GB
+        precision: "FP16",
+        gpuMemoryBytes: 80e9,
+        gpuCount: 1,
+        overheadBytes: 8e9,
+      })
+      expect(result.fits).toBe(false)
+      expect(result.verdict).toBe(
+        "Does not fit: weights need 75 GB, but only 72 GB is available after overhead"
+      )
+    })
+
+    it("formats fractional memory values with decimal precision in fit verdicts", () => {
+      // 8.2B params at FP16 = 16.4 GB weights on a 16 GB GPU
+      const result = evaluateMemoryFit({
+        parameters: 8.2e9,
+        precision: "FP16",
+        gpuMemoryBytes: 16e9,
+        gpuCount: 1,
+        overheadBytes: 1.6e9,
+      })
+      expect(result.fits).toBe(false)
+      expect(result.verdict).toBe(
+        "Does not fit: weights need 16.4 GB, but only 16 GB is available"
+      )
+    })
   })
 
   describe("formatting helpers", () => {

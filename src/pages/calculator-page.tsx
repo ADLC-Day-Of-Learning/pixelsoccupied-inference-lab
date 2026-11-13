@@ -134,7 +134,7 @@ export function CalculatorPage() {
   // 5. Max concurrent requests
   const maxConcurrency = calculateMaxConcurrency(
     kvCapacityTokens,
-    Math.max(1, contextLength)
+    contextLength
   )
 
   // 6. Memory fit evaluation
@@ -384,11 +384,12 @@ export function CalculatorPage() {
                     min={0}
                     step={0.5}
                     value={overheadGb}
+                    aria-describedby="overhead-gb-help"
                     onChange={(e) =>
                       setOverheadGb(parseFloat(e.target.value) || 0)
                     }
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p id="overhead-gb-help" className="text-[11px] text-muted-foreground">
                     Default is 10% of total GPU memory.
                   </p>
                 </div>

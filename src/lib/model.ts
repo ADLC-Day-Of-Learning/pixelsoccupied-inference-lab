@@ -216,10 +216,15 @@ export function evaluateMemoryFit(params: MemoryFitParams): MemoryFitResult {
   )
   const freeMemoryGb = freeMemoryBytes / BYTES_IN_GB
 
+  const formatGb = (gb: number): string => {
+    const rounded = Number(gb.toFixed(1))
+    return Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)
+  }
+
   if (weightMemoryBytes > totalGpuMemoryBytes) {
     return {
       fits: false,
-      verdict: `Does not fit: weights need ${weightMemoryGb.toFixed(0)} GB, but only ${totalGpuMemoryGb.toFixed(0)} GB is available`,
+      verdict: `Does not fit: weights need ${formatGb(weightMemoryGb)} GB, but only ${formatGb(totalGpuMemoryGb)} GB is available`,
       weightMemoryBytes,
       weightMemoryGb,
       totalGpuMemoryBytes,
@@ -232,9 +237,10 @@ export function evaluateMemoryFit(params: MemoryFitParams): MemoryFitResult {
   }
 
   if (weightMemoryBytes > availableAfterOverhead) {
+    const availableGb = availableAfterOverhead / BYTES_IN_GB
     return {
       fits: false,
-      verdict: `Does not fit: weights need ${weightMemoryGb.toFixed(0)} GB, but only ${(availableAfterOverhead / BYTES_IN_GB).toFixed(1)} GB is available after overhead`,
+      verdict: `Does not fit: weights need ${formatGb(weightMemoryGb)} GB, but only ${formatGb(availableGb)} GB is available after overhead`,
       weightMemoryBytes,
       weightMemoryGb,
       totalGpuMemoryBytes,
