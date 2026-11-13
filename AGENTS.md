@@ -27,6 +27,19 @@ It is deployed to GitHub Pages as static files.
 - **Use shadcn components.** Add them with `npx shadcn@latest add <name>`
   instead of hand-writing UI primitives or installing other UI libraries.
   Do not edit generated files in `src/components/ui/` unless an issue asks for it.
+- **Accessible names on compound controls.** Every compound or segmented control
+  (such as shadcn/Base UI `ToggleGroup`, tabs, or custom radiogroups) must define
+  an accessible name. Connect an `id` on the `<Label>` to `aria-labelledby` on
+  the control container (e.g., `<Label id="context-preset-label">` and
+  `<ToggleGroup aria-labelledby="context-preset-label">`).
+- **No redundant `aria-label`.** Do not add `aria-label` to child controls
+  (`ToggleGroupItem`, buttons) when their visible child text already provides the
+  accessible name (WCAG 2.5.3).
+- **Role-based accessible test queries.** In component tests (`*.test.tsx`),
+  assert the presence and accessible name of compound controls using role-based
+  queries (e.g.,
+  `expect(screen.getByRole("radiogroup", { name: /.../i })).toBeInTheDocument()`)
+  rather than querying unassociated child items or raw text alone.
 - **One source of truth for the math.** All formulas live in
   `src/lib/model.ts` as pure, typed functions (inputs in, numbers out; no React,
   no DOM). UI code and game levels import from it; never duplicate a formula.
@@ -85,6 +98,10 @@ npm run typecheck
 npm test          # vitest run
 npm run build
 ```
+
+Component tests (`*.test.tsx`) run under `npm test` must assert compound
+controls using role-based accessible queries (e.g., querying `radiogroup` by
+name).
 
 ## Style
 

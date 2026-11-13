@@ -2,7 +2,6 @@ import { Calculator, Gamepad2, Sparkles } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -77,12 +76,6 @@ export function AppSidebar({ currentView, onSelectView }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t p-3 group-data-[collapsible=icon]:hidden">
-        <p className="text-xs text-muted-foreground">
-          Static educational tool. 1 GB = 1e9 bytes.
-        </p>
-      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
