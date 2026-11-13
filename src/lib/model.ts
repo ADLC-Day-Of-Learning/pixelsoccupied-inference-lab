@@ -244,13 +244,7 @@ export function calculateMemoryShortfall(
   overheadBytes: number = 0
 ): number {
   const availableAfterOverhead = Math.max(0, totalGpuMemoryBytes - overheadBytes)
-  if (weightMemoryBytes > totalGpuMemoryBytes) {
-    return Math.max(0, weightMemoryBytes - totalGpuMemoryBytes)
-  }
-  if (weightMemoryBytes > availableAfterOverhead) {
-    return Math.max(0, weightMemoryBytes - availableAfterOverhead)
-  }
-  return 0
+  return Math.max(0, weightMemoryBytes - availableAfterOverhead)
 }
 
 /**

@@ -117,8 +117,8 @@ describe("model formulas", () => {
       expect(result.verdict).toBe(
         "Does not fit: weights need 140 GB, but only 80 GB is available"
       )
-      expect(result.shortfallBytes).toBe(60e9)
-      expect(result.shortfallGb).toBe(60)
+      expect(result.shortfallBytes).toBe(68e9)
+      expect(result.shortfallGb).toBe(68)
     })
 
     it("verifies Llama-3-70B FP16 fits on 2x H100 80GB", () => {
@@ -184,8 +184,8 @@ describe("model formulas", () => {
 
   describe("calculateMemoryShortfall", () => {
     it("returns shortfall when weights exceed total GPU memory", () => {
-      // 140 GB weights on 80 GB GPU -> 60 GB shortfall
-      expect(calculateMemoryShortfall(140e9, 80e9, 8e9)).toBe(60e9)
+      // 140 GB weights on 80 GB GPU with 8 GB overhead (72 GB available) -> 68 GB shortfall
+      expect(calculateMemoryShortfall(140e9, 80e9, 8e9)).toBe(68e9)
     })
 
     it("returns shortfall when weights exceed available memory after overhead", () => {

@@ -525,7 +525,12 @@ export function CalculatorPage() {
             <CardHeader className="p-4 sm:p-5 pb-3 sm:pb-3">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 {/* Verdict Section */}
-                <div className="space-y-1.5 sm:max-w-[55%]">
+                <div
+                  className="space-y-1.5 sm:max-w-[55%]"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Memory Fit Verdict
                   </div>

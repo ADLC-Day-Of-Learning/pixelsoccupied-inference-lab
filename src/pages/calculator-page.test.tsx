@@ -313,10 +313,13 @@ describe("CalculatorPage hero result panel", () => {
     const heroPanel = screen.getByTestId("hero-result-panel")
     expect(heroPanel).toBeInTheDocument()
 
-    // Verdict "Fits"
-    expect(within(heroPanel).getByText("Fits")).toBeInTheDocument()
+    // Verdict "Fits" in accessible status live region
+    const statusRegion = within(heroPanel).getByRole("status")
+    expect(statusRegion).toHaveAttribute("aria-live", "polite")
+    expect(statusRegion).toHaveAttribute("aria-atomic", "true")
+    expect(within(statusRegion).getByText("Fits")).toBeInTheDocument()
     expect(
-      within(heroPanel).getByText(/model weights require 16\.0 GB out of 80\.0 GB/i)
+      within(statusRegion).getByText(/model weights require 16\.0 GB out of 80\.0 GB/i)
     ).toBeInTheDocument()
 
     // Headline max concurrent requests
@@ -335,7 +338,7 @@ describe("CalculatorPage hero result panel", () => {
     const user = userEvent.setup()
     render(<CalculatorPage />)
 
-    // Select Llama-3-70B preset (140 GB weights on 1x 80 GB GPU -> 60 GB shortfall)
+    // Select Llama-3-70B preset (140 GB weights on 1x 80 GB GPU with 8 GB overhead -> 68 GB shortfall)
     const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
     await user.click(modelTrigger)
     const model70bOption = await screen.findByRole("option", {
@@ -349,7 +352,7 @@ describe("CalculatorPage hero result panel", () => {
     expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
 
     // Displays shortfall in GB
-    expect(within(heroPanel).getByText(/60\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/68\.0 GB Shortfall/i)).toBeInTheDocument()
     expect(
       within(heroPanel).getByText(/weights need 140 GB, but only 80 GB is available/i)
     ).toBeInTheDocument()
@@ -399,7 +402,7 @@ describe("CalculatorPage hero result panel", () => {
     const heroPanel = screen.getByTestId("hero-result-panel")
 
     expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
-    expect(within(heroPanel).getByText(/60\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/68\.0 GB Shortfall/i)).toBeInTheDocument()
 
     // Increase GPU count to 2 (160 GB total memory, 140 GB weights, 16 GB overhead -> 4 GB free)
     const gpu2Btn = screen.getByRole("radio", { name: "2" })
