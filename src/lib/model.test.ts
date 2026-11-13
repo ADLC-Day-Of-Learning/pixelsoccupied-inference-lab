@@ -14,6 +14,7 @@ import {
   estimateDecodeTokensPerSecond,
   GPU_PRESETS,
   BYTES_IN_GB,
+  CONTEXT_LENGTH_PRESETS,
   DEFAULT_COMPUTE_UTILIZATION,
   DEFAULT_BANDWIDTH_UTILIZATION,
 } from "./model"
@@ -203,6 +204,18 @@ describe("model formulas", () => {
       expect(bytesToGb(140e9)).toBe("140.0")
       expect(bytesToGb(140 * BYTES_IN_GB, 0)).toBe("140")
       expect(bytesToKb(131072, 2)).toBe("131.07")
+    })
+  })
+
+  describe("context length presets", () => {
+    it("defines 2K, 4K, 8K, 32K, 128K presets with 1K = 1024 tokens", () => {
+      expect(CONTEXT_LENGTH_PRESETS).toEqual([
+        { id: "2k", label: "2K", tokens: 2048 },
+        { id: "4k", label: "4K", tokens: 4096 },
+        { id: "8k", label: "8K", tokens: 8192 },
+        { id: "32k", label: "32K", tokens: 32768 },
+        { id: "128k", label: "128K", tokens: 131072 },
+      ])
     })
   })
 

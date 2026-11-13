@@ -1,14 +1,8 @@
-// @vitest-environment jsdom
-import "@testing-library/jest-dom/vitest"
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, beforeAll, describe, it, expect } from "vitest"
+import { beforeAll, describe, it, expect } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
 import { App } from "@/App"
-
-afterEach(() => {
-  cleanup()
-})
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -98,6 +92,153 @@ describe("CalculatorPage preset dropdowns", () => {
     fireEvent.change(gpuMemInput, { target: { value: "24" } })
     expect(gpuTrigger).toHaveTextContent("Custom Memory")
     expect(gpuTrigger).not.toHaveTextContent("custom▼")
+  })
+})
+
+describe("CalculatorPage GPU count segmented control", () => {
+  it("renders 1, 2, 4, 8 options with 1 selected by default and updates selection on click", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const btn1 = screen.getByRole("radio", { name: "1" })
+    const btn2 = screen.getByRole("radio", { name: "2" })
+    const btn4 = screen.getByRole("radio", { name: "4" })
+    const btn8 = screen.getByRole("radio", { name: "8" })
+
+    expect(btn1).toHaveAttribute("data-state", "on")
+    expect(btn1).toHaveAttribute("aria-checked", "true")
+    expect(btn2).toHaveAttribute("data-state", "off")
+    expect(btn4).toHaveAttribute("data-state", "off")
+    expect(btn8).toHaveAttribute("data-state", "off")
+
+    // Click 4 GPUs
+    await user.click(btn4)
+    expect(btn4).toHaveAttribute("data-state", "on")
+    expect(btn4).toHaveAttribute("aria-checked", "true")
+    expect(btn1).toHaveAttribute("data-state", "off")
+
+    // Clicking already selected 4 does not deselect it
+    await user.click(btn4)
+    expect(btn4).toHaveAttribute("data-state", "on")
+
+    // Verify formula card updated for 4 GPUs (e.g. "80 GB × 4")
+    expect(screen.getByText(/80 GB × 4/i)).toBeInTheDocument()
+  })
+
+  it("supports keyboard navigation between options and selection with Space or Enter", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const btn1 = screen.getByRole("radio", { name: "1" })
+    const btn2 = screen.getByRole("radio", { name: "2" })
+
+    // Focus the initial selected button
+    btn1.focus()
+    expect(btn1).toHaveFocus()
+
+    // Navigate to next option with ArrowRight
+    await user.keyboard("{ArrowRight}")
+    expect(btn2).toHaveFocus()
+
+    // Select with Space
+    await user.keyboard(" ")
+    expect(btn2).toHaveAttribute("data-state", "on")
+    expect(btn1).toHaveAttribute("data-state", "off")
+    expect(screen.getByText(/80 GB × 2/i)).toBeInTheDocument()
+  })
+})
+
+describe("CalculatorPage context length presets", () => {
+  it("defaults to 4K and updates context length when selecting presets", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Verify radiogroup accessible name
+    expect(
+      screen.getByRole("radiogroup", { name: /context length/i })
+    ).toBeInTheDocument()
+
+    // Verify default selection is 4K (4096 tokens)
+    const preset4k = screen.getByRole("radio", { name: /4k/i })
+    expect(preset4k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/@ 4,096 tokens context/i)).toBeInTheDocument()
+
+    // Numeric input should not be shown for presets
+    expect(
+      screen.queryByRole("spinbutton", { name: /context length/i })
+    ).not.toBeInTheDocument()
+
+    // Selecting 2K updates calculations
+    const preset2k = screen.getByRole("radio", { name: /\b2k\b/i })
+    await user.click(preset2k)
+    expect(preset2k).toHaveAttribute("data-state", "on")
+    expect(preset4k).toHaveAttribute("data-state", "off")
+    expect(screen.getByText(/@ 2,048 tokens context/i)).toBeInTheDocument()
+
+    // Selecting 32K updates calculations
+    const preset32k = screen.getByRole("radio", { name: /32k/i })
+    await user.click(preset32k)
+    expect(preset32k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/@ 32,768 tokens context/i)).toBeInTheDocument()
+
+    // Selecting 128K updates calculations
+    const preset128k = screen.getByRole("radio", { name: /128k/i })
+    await user.click(preset128k)
+    expect(preset128k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/@ 131,072 tokens context/i)).toBeInTheDocument()
+
+    // Selecting 8K updates calculations
+    const preset8k = screen.getByRole("radio", { name: /\b8k\b/i })
+    await user.click(preset8k)
+    expect(preset8k).toHaveAttribute("data-state", "on")
+    expect(screen.getByText(/@ 8,192 tokens context/i)).toBeInTheDocument()
+  })
+
+  it("reveals numeric input when Custom is selected and validates non-positive values", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Select Custom option to reveal number input
+    const customToggle = screen.getByRole("radio", { name: /custom/i })
+    await user.click(customToggle)
+    expect(customToggle).toHaveAttribute("data-state", "on")
+
+    const customInput = screen.getByRole("spinbutton", {
+      name: /context length/i,
+    })
+    expect(customInput).toBeInTheDocument()
+    expect(customInput).toHaveValue(4096)
+
+    // Entering a valid custom number updates calculations
+    await user.clear(customInput)
+    await user.type(customInput, "16384")
+    expect(screen.getByText(/@ 16,384 tokens context/i)).toBeInTheDocument()
+    expect(
+      screen.queryByText(/must be greater than 0/i)
+    ).not.toBeInTheDocument()
+
+    // Values <= 0 show inline error
+    await user.clear(customInput)
+    await user.type(customInput, "0")
+    expect(screen.getByText(/must be greater than 0/i)).toBeInTheDocument()
+    expect(customInput).toHaveAttribute("aria-invalid", "true")
+
+    // Negative values show inline error
+    await user.clear(customInput)
+    await user.type(customInput, "-100")
+    expect(screen.getByText(/must be greater than 0/i)).toBeInTheDocument()
+
+    // Clearing input shows inline error
+    await user.clear(customInput)
+    expect(screen.getByText(/must be greater than 0/i)).toBeInTheDocument()
+
+    // Recovering to a valid positive value clears inline error
+    await user.type(customInput, "8192")
+    expect(
+      screen.queryByText(/must be greater than 0/i)
+    ).not.toBeInTheDocument()
+    expect(customInput).toHaveAttribute("aria-invalid", "false")
+    expect(screen.getByText(/@ 8,192 tokens context/i)).toBeInTheDocument()
   })
 })
 
@@ -261,8 +402,8 @@ describe("CalculatorPage hero result panel", () => {
     expect(within(heroPanel).getByText(/60\.0 GB Shortfall/i)).toBeInTheDocument()
 
     // Increase GPU count to 2 (160 GB total memory, 140 GB weights, 16 GB overhead -> 4 GB free)
-    const gpuCountInput = screen.getByLabelText(/number of gpus/i)
-    fireEvent.change(gpuCountInput, { target: { value: "2" } })
+    const gpu2Btn = screen.getByRole("radio", { name: "2" })
+    await user.click(gpu2Btn)
 
     expect(within(heroPanel).getByText("Fits")).toBeInTheDocument()
     expect(within(heroPanel).queryByText("Does Not Fit")).not.toBeInTheDocument()
