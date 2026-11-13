@@ -101,6 +101,59 @@ describe("CalculatorPage preset dropdowns", () => {
   })
 })
 
+describe("CalculatorPage GPU count segmented control", () => {
+  it("renders 1, 2, 4, 8 options with 1 selected by default and updates selection on click", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const btn1 = screen.getByRole("radio", { name: "1" })
+    const btn2 = screen.getByRole("radio", { name: "2" })
+    const btn4 = screen.getByRole("radio", { name: "4" })
+    const btn8 = screen.getByRole("radio", { name: "8" })
+
+    expect(btn1).toHaveAttribute("data-state", "on")
+    expect(btn1).toHaveAttribute("aria-checked", "true")
+    expect(btn2).toHaveAttribute("data-state", "off")
+    expect(btn4).toHaveAttribute("data-state", "off")
+    expect(btn8).toHaveAttribute("data-state", "off")
+
+    // Click 4 GPUs
+    await user.click(btn4)
+    expect(btn4).toHaveAttribute("data-state", "on")
+    expect(btn4).toHaveAttribute("aria-checked", "true")
+    expect(btn1).toHaveAttribute("data-state", "off")
+
+    // Clicking already selected 4 does not deselect it
+    await user.click(btn4)
+    expect(btn4).toHaveAttribute("data-state", "on")
+
+    // Verify formula card updated for 4 GPUs (e.g. "80 GB × 4")
+    expect(screen.getByText(/80 GB × 4/i)).toBeInTheDocument()
+  })
+
+  it("supports keyboard navigation between options and selection with Space or Enter", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const btn1 = screen.getByRole("radio", { name: "1" })
+    const btn2 = screen.getByRole("radio", { name: "2" })
+
+    // Focus the initial selected button
+    btn1.focus()
+    expect(btn1).toHaveFocus()
+
+    // Navigate to next option with ArrowRight
+    await user.keyboard("{ArrowRight}")
+    expect(btn2).toHaveFocus()
+
+    // Select with Space
+    await user.keyboard(" ")
+    expect(btn2).toHaveAttribute("data-state", "on")
+    expect(btn1).toHaveAttribute("data-state", "off")
+    expect(screen.getByText(/80 GB × 2/i)).toBeInTheDocument()
+  })
+})
+
 describe("Model configuration card architecture fields", () => {
   it("shows a compact read-only summary for presets and editable inputs for custom", async () => {
     const user = userEvent.setup()

@@ -43,6 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 const MODEL_PRESET_ITEMS: Record<string, string> = {
   "llama-3-8b": "Llama-3-8B (8B, 32L, 8KV, 128D)",
@@ -354,17 +355,35 @@ export function CalculatorPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="gpu-count">Number of GPUs (1–8)</Label>
-                  <Input
+                  <Label id="gpu-count-label" htmlFor="gpu-count">
+                    Number of GPUs
+                  </Label>
+                  <ToggleGroup
                     id="gpu-count"
-                    type="number"
-                    min={1}
-                    max={8}
-                    value={gpuCount}
-                    onChange={(e) =>
-                      handleGpuCountChange(parseInt(e.target.value, 10))
-                    }
-                  />
+                    aria-labelledby="gpu-count-label"
+                    type="single"
+                    value={String(gpuCount)}
+                    onValueChange={(val: string) => {
+                      if (val) {
+                        handleGpuCountChange(parseInt(val, 10))
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <ToggleGroupItem value="1" className="flex-1">
+                      1
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="2" className="flex-1">
+                      2
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="4" className="flex-1">
+                      4
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="8" className="flex-1">
+                      8
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
               </div>
 
