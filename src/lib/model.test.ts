@@ -17,6 +17,13 @@ import {
   CONTEXT_LENGTH_PRESETS,
   DEFAULT_COMPUTE_UTILIZATION,
   DEFAULT_BANDWIDTH_UTILIZATION,
+  getToyQualityScore,
+  TOY_QUALITY_SCORES,
+  GPU_HOURLY_COSTS,
+  getGpuHourlyCost,
+  calculateCostPer1MTokens,
+  evaluateLevel5Challenge1,
+  evaluateLevel5Challenge2,
 } from "./model"
 
 describe("model formulas", () => {
@@ -645,6 +652,145 @@ describe("model formulas", () => {
       const throughput = estimateDecodeTokensPerSecond({ stepTimeSeconds: 0.01, batchSize: 0 })
       expect(throughput.perRequestTokensPerSecond).toBe(0)
       expect(throughput.aggregateTokensPerSecond).toBe(0)
+    })
+  })
+
+  describe("toy quality scores and GPU rental costs", () => {
+    it("returns expected toy quality scores for all model and precision combinations", () => {
+      expect(getToyQualityScore("llama-3-70b", "FP16")).toBe(100)
+      expect(getToyQualityScore("llama-3-70b", "FP8")).toBe(99)
+      expect(getToyQualityScore("llama-3-70b", "INT4")).toBe(95)
+      expect(getToyQualityScore("llama-3-8b", "FP16")).toBe(80)
+      expect(getToyQualityScore("llama-3-8b", "FP8")).toBe(79)
+      expect(getToyQualityScore("llama-3-8b", "INT4")).toBe(74)
+      expect(getToyQualityScore("unknown-model", "FP16")).toBe(0)
+    })
+
+    it("verifies TOY_QUALITY_SCORES table matches documented specification", () => {
+      expect(TOY_QUALITY_SCORES["llama-3-70b"]).toEqual({
+        FP16: 100,
+        FP8: 99,
+        INT4: 95,
+      })
+      expect(TOY_QUALITY_SCORES["llama-3-8b"]).toEqual({
+        FP16: 80,
+        FP8: 79,
+        INT4: 74,
+      })
+    })
+
+    it("returns fixed hourly rates for known GPU presets and 0 for unknown", () => {
+      expect(getGpuHourlyCost("a100-80gb")).toBe(2.2)
+      expect(getGpuHourlyCost("h100-80gb")).toBe(3.2)
+      expect(getGpuHourlyCost("l40s-48gb")).toBe(1.1)
+      expect(getGpuHourlyCost("unknown-gpu")).toBe(0)
+      expect(GPU_HOURLY_COSTS["a100-80gb"]).toBe(2.2)
+      expect(GPU_HOURLY_COSTS["h100-80gb"]).toBe(3.2)
+      expect(GPU_HOURLY_COSTS["l40s-48gb"]).toBe(1.1)
+    })
+  })
+
+  describe("calculateCostPer1MTokens", () => {
+    it("calculates cost per 1M tokens from hourly GPU rate and throughput", () => {
+      // Formula: ($/hour * GPUs) / (tokens per hour / 1e6)
+      // 1 GPU at $2.00/hr serving 100 tokens/s -> 360,000 tokens/hr -> $2 / 0.36M = $5.56 / 1M tokens
+      const cost = calculateCostPer1MTokens({
+        costPerHourPerGpu: 2.0,
+        gpuCount: 1,
+        tokensPerSecond: 100,
+      })
+      expect(cost).toBeCloseTo(5.5555, 2)
+    })
+
+    it("scales cost with GPU count and inversely with throughput", () => {
+      // 2 GPUs at $3.20/hr each ($6.40 total/hr) serving 200 tokens/s
+      // tokensPerHour = 200 * 3600 = 720,000 tokens/hr = 0.72M tokens/hr
+      // Cost = 6.40 / 0.72 ≈ $8.8888 / 1M tokens
+      const cost = calculateCostPer1MTokens(3.2, 2, 200)
+      expect(cost).toBeCloseTo(8.8888, 3)
+    })
+
+    it("handles zero or non-positive inputs safely", () => {
+      expect(calculateCostPer1MTokens({ costPerHourPerGpu: 0, gpuCount: 1, tokensPerSecond: 100 })).toBe(0)
+      expect(calculateCostPer1MTokens({ costPerHourPerGpu: 3.2, gpuCount: 0, tokensPerSecond: 100 })).toBe(0)
+      expect(calculateCostPer1MTokens({ costPerHourPerGpu: 3.2, gpuCount: 1, tokensPerSecond: 0 })).toBe(0)
+      expect(calculateCostPer1MTokens(-2.0, 1, 100)).toBe(0)
+      expect(calculateCostPer1MTokens(2.0, -1, 100)).toBe(0)
+      expect(calculateCostPer1MTokens(2.0, 1, -100)).toBe(0)
+    })
+  })
+
+  describe("evaluateLevel5Challenge1 and evaluateLevel5Challenge2", () => {
+    it("evaluates Challenge 1: Quality >= 95 and cost <= maxCost threshold", () => {
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 95,
+          costPer1MTokens: 13.27,
+          maxCostThreshold: 15.0,
+        })
+      ).toBe(true)
+
+      // Quality < 95 fails
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 80,
+          costPer1MTokens: 10.0,
+          maxCostThreshold: 15.0,
+        })
+      ).toBe(false)
+
+      // Cost > 15 fails
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 99,
+          costPer1MTokens: 26.53,
+          maxCostThreshold: 15.0,
+        })
+      ).toBe(false)
+
+      // Does not fit fails
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 100,
+          costPer1MTokens: 12.0,
+          fits: false,
+        })
+      ).toBe(false)
+    })
+
+    it("evaluates Challenge 2: Fastest setup with quality >= 79", () => {
+      // 8B FP8 on 8x H100 delivers ~2345 tokens/s with quality 79
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 79,
+          tokensPerSecond: 2345,
+        })
+      ).toBe(true)
+
+      // Slower setup fails (e.g. 8B FP8 on 4x H100 ~1173 tokens/s)
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 79,
+          tokensPerSecond: 1173,
+        })
+      ).toBe(false)
+
+      // 8B INT4 is faster (~4690 tokens/s) but quality is only 74 (< 79), so it fails
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 74,
+          tokensPerSecond: 4690,
+        })
+      ).toBe(false)
+
+      // Does not fit fails
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 79,
+          tokensPerSecond: 2345,
+          fits: false,
+        })
+      ).toBe(false)
     })
   })
 })

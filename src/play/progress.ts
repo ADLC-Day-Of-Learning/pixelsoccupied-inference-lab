@@ -169,12 +169,18 @@ export function isLevelUnlocked(
     return true
   }
 
-  // Level N unlocks when level N - 1 is completed
+  // Level N unlocks when level N - 1 is completed (or prior registered level if gaps exist)
   if (levelNum !== undefined && levelNum > 1) {
     const prevNum = levelNum - 1
     const prevLevel = levels.find((l) => l.number === prevNum)
     if (prevLevel) {
       return isLevelCompleted(state, prevLevel.id, levels)
+    }
+    const priorInRegistry = levels
+      .filter((l) => l.number < levelNum)
+      .sort((a, b) => b.number - a.number)[0]
+    if (priorInRegistry) {
+      return isLevelCompleted(state, priorInRegistry.id, levels)
     }
     return (
       state.completedLevelIds.includes(`level-${prevNum}`) ||
