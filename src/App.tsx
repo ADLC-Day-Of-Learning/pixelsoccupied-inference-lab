@@ -6,11 +6,15 @@ import { CalculatorPage } from "@/pages/calculator-page"
 import { PlayPage } from "@/pages/play-page"
 
 export function App() {
-  const [currentView, setCurrentView] = React.useState<AppView>("calculator")
+  const [currentView, setCurrentView] = React.useState<AppView>("play")
 
   const viewTitles: Record<AppView, { title: string; subtitle: string }> = {
     calculator: {
-      title: "Inference Calculator",
+      title: "Lab",
+      subtitle: "Memory, KV cache capacity & request concurrency",
+    },
+    lab: {
+      title: "Lab",
       subtitle: "Memory, KV cache capacity & request concurrency",
     },
     play: {
@@ -30,7 +34,11 @@ export function App() {
       <SidebarInset>
         <SiteHeader title={title} subtitle={subtitle} />
         <main className="flex flex-1 flex-col">
-          {currentView === "calculator" ? <CalculatorPage /> : <PlayPage />}
+          {currentView === "calculator" || currentView === "lab" ? (
+            <CalculatorPage />
+          ) : (
+            <PlayPage />
+          )}
         </main>
       </SidebarInset>
     </SidebarProvider>
