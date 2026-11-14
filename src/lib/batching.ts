@@ -174,8 +174,9 @@ export function simulateBatching(
 
   let totalActiveSlotSteps = 0
   let totalCapacitySlotSteps = 0
+  let totalStepTimeSec = 0
+  let totalSteps = 0
   let simTime = workload[0]?.arrivalTime ?? 0
-  let lastStepTimeSec = 0
 
   if (mode === "static") {
     const queue: RequestState[] = []
@@ -228,7 +229,8 @@ export function simulateBatching(
           kvBytesRead,
           memoryBandwidthTb,
         })
-        lastStepTimeSec = stepTime
+        totalStepTimeSec += stepTime
+        totalSteps++
 
         simTime += stepTime
         totalActiveSlotSteps += activeInStep.length
@@ -307,7 +309,8 @@ export function simulateBatching(
         kvBytesRead,
         memoryBandwidthTb,
       })
-      lastStepTimeSec = stepTime
+      totalStepTimeSec += stepTime
+      totalSteps++
 
       simTime += stepTime
       totalActiveSlotSteps += activeBatch.length
@@ -343,8 +346,11 @@ export function simulateBatching(
     (sum, r) => sum + r.outputTokens,
     0
   )
-  const firstArrival = completed[0]?.arrivalTime ?? 0
-  const lastFinish = completed[completed.length - 1]?.finishTime ?? simTime
+  const firstArrival = workload[0]?.arrivalTime ?? 0
+  const lastFinish =
+    completed.length > 0
+      ? Math.max(...completed.map((r) => r.finishTime))
+      : simTime
   const totalDurationSec = Math.max(0.001, lastFinish - firstArrival)
 
   const tokensPerSecond = Math.round(totalTokensGenerated / totalDurationSec)
@@ -372,7 +378,8 @@ export function simulateBatching(
       ? Number((totalActiveSlotSteps / totalCapacitySlotSteps).toFixed(3))
       : 0
 
-  const stepTimeMs = Number((lastStepTimeSec * 1000).toFixed(1))
+  const averageStepTimeSec = totalSteps > 0 ? totalStepTimeSec / totalSteps : 0
+  const stepTimeMs = Number((averageStepTimeSec * 1000).toFixed(1))
 
   return {
     mode,

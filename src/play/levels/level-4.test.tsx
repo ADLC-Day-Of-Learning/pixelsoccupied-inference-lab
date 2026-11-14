@@ -148,6 +148,36 @@ describe("Level4Component", () => {
     expect(onComplete).toHaveBeenCalledTimes(1)
   })
 
+  it("does not pass Goal 2 when static and continuous were run under different arrival rates", () => {
+    renderLevel4()
+
+    // Navigate to Try
+    fireEvent.click(screen.getByRole("tab", { name: /try/i }))
+
+    // Switch to static mode at default arrival rate (30)
+    const staticRadio = screen.getByRole("radio", { name: /^static$/i })
+    fireEvent.click(staticRadio)
+
+    // Change arrival rate slider to 10
+    const arrivalSlider = screen.getByRole("slider", {
+      name: /request arrival rate/i,
+    })
+    fireEvent.change(arrivalSlider, { target: { value: "10" } })
+
+    // Switch to continuous mode at arrival rate 10
+    const continuousRadio = screen.getByRole("radio", { name: /^continuous$/i })
+    fireEvent.click(continuousRadio)
+
+    // Navigate to Challenge section
+    fireEvent.click(screen.getByRole("tab", { name: /challenge/i }))
+
+    // Goal 2 should NOT be passed yet for arrival rate 10 because static was not run at 10
+    const incompleteButton = screen.getByRole("button", {
+      name: /complete both goals to pass/i,
+    })
+    expect(incompleteButton).toBeDisabled()
+  })
+
   it("navigates to Recap section and displays key takeaways", () => {
     renderLevel4()
 

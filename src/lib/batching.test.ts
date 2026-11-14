@@ -148,6 +148,37 @@ describe("simulateBatching", () => {
     expect(run.tokensPerSecond).toBeGreaterThanOrEqual(2000)
     expect(run.p95LatencySec).toBeLessThanOrEqual(2.0)
   })
+
+  it("reflects active batch size and KV cache read overhead in average stepTimeMs", () => {
+    const runBatch1 = simulateBatching({
+      mode: "continuous",
+      batchSize: 1,
+      seed: 42,
+    })
+
+    const runBatch32 = simulateBatching({
+      mode: "continuous",
+      batchSize: 32,
+      seed: 42,
+    })
+
+    expect(runBatch32.stepTimeMs).toBeGreaterThan(runBatch1.stepTimeMs)
+  })
+
+  it("calculates simulation duration across true initial arrival and final finish time", () => {
+    const run = simulateBatching({
+      mode: "continuous",
+      batchSize: 16,
+      arrivalRate: 25,
+      seed: 42,
+    })
+
+    const minArrival = Math.min(...run.requests.map((r) => r.arrivalTime))
+    const maxFinish = Math.max(...run.requests.map((r) => r.finishTime))
+    const expectedDuration = Number((maxFinish - minArrival).toFixed(3))
+
+    expect(run.totalDurationSec).toBeCloseTo(expectedDuration, 2)
+  })
 })
 
 describe("sweepBatchSizes", () => {

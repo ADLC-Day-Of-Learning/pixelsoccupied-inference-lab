@@ -37,10 +37,12 @@ export function Level4Component({ onComplete }: LevelProps) {
   const [arrivalRate, setArrivalRate] = React.useState(30)
   const [isFormulaOpen, setIsFormulaOpen] = React.useState(false)
 
-  // Record comparison runs for Challenge 2: [batchSize] -> { static?: number, continuous?: number }
+  // Record comparison runs for Challenge 2: `${batchSize}-${arrivalRate}` -> { static?: number, continuous?: number }
   const [history, setHistory] = React.useState<
-    Record<number, { static?: number; continuous?: number }>
+    Record<string, { static?: number; continuous?: number }>
   >({})
+
+  const historyKey = `${batchSize}-${arrivalRate}`
 
   // Run simulation whenever controls change
   const simResult = React.useMemo(() => {
@@ -64,7 +66,7 @@ export function Level4Component({ onComplete }: LevelProps) {
   // Automatically record runs for Challenge 2
   React.useEffect(() => {
     setHistory((prev) => {
-      const existing = prev[batchSize] ?? {}
+      const existing = prev[historyKey] ?? {}
       if (mode === "static" && existing.static === simResult.tokensPerSecond) {
         return prev
       }
@@ -76,13 +78,13 @@ export function Level4Component({ onComplete }: LevelProps) {
       }
       return {
         ...prev,
-        [batchSize]: {
+        [historyKey]: {
           ...existing,
           [mode]: simResult.tokensPerSecond,
         },
       }
     })
-  }, [batchSize, mode, simResult.tokensPerSecond])
+  }, [historyKey, mode, simResult.tokensPerSecond])
 
   // Compare both modes at the current batch size button handler
   const handleRunComparison = React.useCallback(() => {
@@ -98,9 +100,10 @@ export function Level4Component({ onComplete }: LevelProps) {
       arrivalRate,
       seed: 42,
     })
+    const key = `${batchSize}-${arrivalRate}`
     setHistory((prev) => ({
       ...prev,
-      [batchSize]: {
+      [key]: {
         static: staticRun.tokensPerSecond,
         continuous: continuousRun.tokensPerSecond,
       },
@@ -117,7 +120,7 @@ export function Level4Component({ onComplete }: LevelProps) {
     simResult.p95LatencySec <= LATENCY_SLO_SEC
 
   // Goal 2: Continuous batching beats static batching at the same batch size
-  const comparison = history[batchSize]
+  const comparison = history[historyKey]
   const goal2Passed = Boolean(
     comparison?.static !== undefined &&
       comparison?.continuous !== undefined &&

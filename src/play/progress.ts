@@ -184,7 +184,7 @@ export function isLevelUnlocked(
         curr.number > prev.number ? curr : prev
       )
       return (
-        highestPreceding.number <= 1 ||
+        highestPreceding.number === 0 ||
         isLevelCompleted(state, highestPreceding.id, levels)
       )
     }
