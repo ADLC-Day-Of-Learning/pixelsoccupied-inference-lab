@@ -462,7 +462,7 @@ export function Level5Component({ onComplete }: LevelProps) {
                 </p>
                 <p className="text-[11px] text-muted-foreground font-mono">
                   {fits
-                    ? `(${(hourlyRate * gpuCount).toFixed(2)}/hr) ÷ (${Math.round((tokensPerSecond * 3600) / 1000)}k tok/hr)`
+                    ? `(${(hourlyRate * gpuCount).toFixed(2)}/hr) ÷ (${((tokensPerSecond * 3600) / 1e6).toFixed(2)}M tok/hr)`
                     : "Cannot serve"}
                 </p>
               </CardContent>

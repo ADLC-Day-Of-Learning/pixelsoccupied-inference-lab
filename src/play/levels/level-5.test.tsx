@@ -108,6 +108,7 @@ describe("Level 5: Quantization and model choice", () => {
     expect(screen.getByText("95 / 100")).toBeInTheDocument() // 70B INT4 quality score
     expect(screen.getByText(/~40 tokens\/s/i)).toBeInTheDocument()
     expect(screen.getByText(/\$15\.28 \/ 1M/i)).toBeInTheDocument() // A100 70B INT4 cost
+    expect(screen.getByText(/M tok\/hr/i)).toBeInTheDocument()
   })
 
   it("completes Challenge Goal 1 and Goal 2 and triggers onComplete callback", () => {

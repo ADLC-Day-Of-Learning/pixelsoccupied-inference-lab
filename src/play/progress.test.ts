@@ -88,6 +88,28 @@ describe("progress and level unlocking", () => {
     expect(isLevelUnlocked(updated, 2, mockLevels)).toBe(true)
   })
 
+  it("unlocks non-consecutive levels when the preceding registered level in the registry is completed", () => {
+    const mockLevel5: LevelDefinition = {
+      id: "quantization-and-model-choice",
+      number: 5,
+      title: "Quantization and model choice",
+      concept: "Quantization concept",
+      Component: () => null,
+    }
+    const levelsWithGaps = [mockLevel0, mockLevel5]
+
+    const initialState = getInitialProgressState()
+    expect(isLevelUnlocked(initialState, mockLevel5, levelsWithGaps)).toBe(false)
+
+    // Complete Level 0 (the preceding registered level in registry)
+    const completed = markLevelCompleted(
+      initialState,
+      mockLevel0.id,
+      levelsWithGaps
+    )
+    expect(isLevelUnlocked(completed, mockLevel5, levelsWithGaps)).toBe(true)
+  })
+
   it("does not duplicate completed level IDs when marked multiple times", () => {
     const initialState = getInitialProgressState()
     const once = markLevelCompleted(initialState, "how-it-works", mockLevels)
