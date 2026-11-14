@@ -88,6 +88,28 @@ describe("progress and level unlocking", () => {
     expect(isLevelUnlocked(updated, 2, mockLevels)).toBe(true)
   })
 
+  it("unlocks non-consecutive levels when the preceding registered level in the registry is completed", () => {
+    const mockLevel5: LevelDefinition = {
+      id: "quantization-and-model-choice",
+      number: 5,
+      title: "Quantization and model choice",
+      concept: "Quantization concept",
+      Component: () => null,
+    }
+    const levelsWithGaps = [mockLevel0, mockLevel1, mockLevel5]
+
+    const initialState = getInitialProgressState()
+    expect(isLevelUnlocked(initialState, mockLevel5, levelsWithGaps)).toBe(false)
+
+    // Complete Level 1 (the preceding registered level in registry)
+    const completed = markLevelCompleted(
+      initialState,
+      mockLevel1.id,
+      levelsWithGaps
+    )
+    expect(isLevelUnlocked(completed, mockLevel5, levelsWithGaps)).toBe(true)
+  })
+
   it("unlocks non-contiguous levels using preceding registered level when intermediate levels are omitted", () => {
     const nonContiguousLevels = [mockLevel0, mockLevel1, mockLevel3]
     const state = getInitialProgressState()
