@@ -19,7 +19,9 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
+  BYTES_IN_GB,
   calculateWeightMemory,
+  estimateDecodeStepTime,
   estimateRequestLatency,
   GPU_PRESETS,
   MODEL_PRESETS,
@@ -39,7 +41,7 @@ export function Level2Component({ onComplete }: LevelProps) {
   const [challengeModelId, setChallengeModelId] = React.useState<string>("llama-3-8b")
   const [challengeGpuId, setChallengeGpuId] = React.useState<string>("a100-80gb")
   const [challengePromptTokens, setChallengePromptTokens] = React.useState<number>(4000)
-  const [challengeOutputTokens, setChallengeOutputTokens] = React.useState<number>(100)
+  const [challengeOutputTokens, setChallengeOutputTokens] = React.useState<number>(10)
 
   // Track independent goal satisfaction so user can solve them in stages
   const [goal1Achieved, setGoal1Achieved] = React.useState<boolean>(false)
@@ -67,8 +69,14 @@ export function Level2Component({ onComplete }: LevelProps) {
 
   // Ideal weight streaming calculation for Key Intuition (ignoring KV & overhead)
   const weightBytes = calculateWeightMemory(activeModel.parameters, "FP16")
-  const weightGb = weightBytes / 1e9
-  const idealDecodeMs = (weightBytes / (activeGpu.memoryBandwidthTb * 1e12)) * 1000
+  const weightGb = weightBytes / BYTES_IN_GB
+  const idealDecodeMs =
+    estimateDecodeStepTime({
+      weightBytes,
+      kvBytesRead: 0,
+      memoryBandwidthTb: activeGpu.memoryBandwidthTb,
+      bandwidthUtilization: 1,
+    }) * 1000
 
   // Side-by-side comparison workloads: Short Chat vs Long Summarization
   const shortChatLatency = estimateRequestLatency({
@@ -132,13 +140,17 @@ export function Level2Component({ onComplete }: LevelProps) {
 
   const bothGoalsMet = goal1Achieved && goal2Achieved
 
-  // Simulation playback trigger
-  const handleSimulate = () => {
-    setIsSimulating(true)
+  React.useEffect(() => {
+    if (!isSimulating) return
     const timeout = setTimeout(() => {
       setIsSimulating(false)
     }, 1800)
     return () => clearTimeout(timeout)
+  }, [isSimulating])
+
+  // Simulation playback trigger
+  const handleSimulate = () => {
+    setIsSimulating(true)
   }
 
   return (
@@ -610,14 +622,14 @@ export function Level2Component({ onComplete }: LevelProps) {
 
             <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground gap-2 pt-1">
               <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-xs bg-blue-500" />
+                <span className="size-2.5 rounded-full bg-blue-500" />
                 <span>
                   Prefill: <strong>{tryLatency.prefillMs.toFixed(0)} ms</strong> (
                   {tryLatency.prefillPercentage.toFixed(1)}%)
                 </span>
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-xs bg-emerald-500" />
+                <span className="size-2.5 rounded-full bg-emerald-500" />
                 <span>
                   Decode: <strong>{tryLatency.totalDecodeMs.toFixed(0)} ms</strong> (
                   {tryLatency.decodePercentage.toFixed(1)}%)
@@ -941,6 +953,9 @@ export function Level2Component({ onComplete }: LevelProps) {
                     <CardTitle className="text-sm">Goal 1: Fast 4K TTFT</CardTitle>
                   </div>
                   <Badge
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
                     variant={goal1Achieved ? "default" : "secondary"}
                     className={goal1Achieved ? "bg-emerald-600 text-white text-[10px]" : "text-[10px]"}
                   >
@@ -1000,6 +1015,9 @@ export function Level2Component({ onComplete }: LevelProps) {
                     <CardTitle className="text-sm">Goal 2: Decode Dominance</CardTitle>
                   </div>
                   <Badge
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
                     variant={goal2Achieved ? "default" : "secondary"}
                     className={goal2Achieved ? "bg-emerald-600 text-white text-[10px]" : "text-[10px]"}
                   >
@@ -1050,7 +1068,7 @@ export function Level2Component({ onComplete }: LevelProps) {
                     <Target className="size-5" />
                   )}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1" role="status" aria-live="polite" aria-atomic="true">
                   <h4 className="text-sm font-semibold">
                     {isCompleted
                       ? "Challenge Complete!"

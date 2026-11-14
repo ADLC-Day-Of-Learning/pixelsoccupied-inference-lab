@@ -88,6 +88,15 @@ describe("progress and level unlocking", () => {
     expect(isLevelUnlocked(updated, 2, mockLevels)).toBe(true)
   })
 
+  it("unlocks non-contiguous levels using preceding registered level when intermediate levels are omitted", () => {
+    const nonContiguousLevels = [mockLevel0, mockLevel2]
+    const state = getInitialProgressState()
+    expect(isLevelUnlocked(state, mockLevel2, nonContiguousLevels)).toBe(false)
+
+    const updated = markLevelCompleted(state, mockLevel0.id, nonContiguousLevels)
+    expect(isLevelUnlocked(updated, mockLevel2, nonContiguousLevels)).toBe(true)
+  })
+
   it("does not duplicate completed level IDs when marked multiple times", () => {
     const initialState = getInitialProgressState()
     const once = markLevelCompleted(initialState, "how-it-works", mockLevels)
