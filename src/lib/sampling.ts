@@ -205,6 +205,12 @@ export interface SamplingTokenResult {
   isCutOff: boolean // true if probability is zeroed out by top-k or top-p
 }
 
+export interface SamplingDistributionParams {
+  temperature: number
+  topK: number
+  topP: number
+}
+
 /**
  * Computes the full sampling distribution across candidates:
  * 1. Computes baseline original probabilities (T=1, no filtering)
@@ -214,11 +220,7 @@ export interface SamplingTokenResult {
  */
 export function computeSamplingDistribution(
   candidates: CandidateToken[],
-  options: {
-    temperature: number
-    topK: number
-    topP: number
-  }
+  options: SamplingDistributionParams
 ): SamplingTokenResult[] {
   const logits = candidates.map((c) => c.logit)
   const originalProbs = softmax(logits, 1.0)
@@ -232,6 +234,6 @@ export function computeSamplingDistribution(
     originalProb: originalProbs[idx],
     tempProb: tempProbs[idx],
     finalProb: finalProbs[idx],
-    isCutOff: finalProbs[idx] <= 1e-9 && tempProbs[idx] > 1e-9,
+    isCutOff: finalProbs[idx] <= 1e-9 && originalProbs[idx] > 1e-9,
   }))
 }

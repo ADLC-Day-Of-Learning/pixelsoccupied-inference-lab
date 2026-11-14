@@ -145,6 +145,59 @@ describe("Level1Component (Play Level 1: Sampling)", () => {
 
     expect(handleComplete).toHaveBeenCalledTimes(1)
     expect(screen.getByText(/Level 1 Mastered!/i)).toBeInTheDocument()
+
+    // WCAG 4.1.3: completion announcement live region
+    const statusRegions = screen.getAllByRole("status")
+    const masteredRegion = statusRegions.find((el) =>
+      el.textContent?.includes("Level 1 Mastered!")
+    )
+    expect(masteredRegion).toBeDefined()
+    expect(masteredRegion).toHaveAttribute("aria-live", "polite")
+    expect(masteredRegion).toHaveAttribute("aria-atomic", "true")
+  })
+
+  it("displays initial instructional state in Challenge section before sampling", () => {
+    renderLevel1()
+
+    const challengeTab = screen.getByRole("tab", { name: /challenge/i })
+    fireEvent.click(challengeTab)
+
+    expect(
+      screen.getByText(
+        /Click "Sample 20× & Test Goals" to test your current temperature/i
+      )
+    ).toBeInTheDocument()
+  })
+
+  it("displays completed status and passed goals when revisited as already completed", () => {
+    renderLevel1(vi.fn(), true)
+
+    const challengeTab = screen.getByRole("tab", { name: /challenge/i })
+    fireEvent.click(challengeTab)
+
+    expect(screen.getByText(/Completed ✓/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Passed ✓/i).length).toBe(2)
+
+    const statusRegions = screen.getAllByRole("status")
+    const masteredRegion = statusRegions.find((el) =>
+      el.textContent?.includes("Level 1 Mastered!")
+    )
+    expect(masteredRegion).toBeDefined()
+    expect(masteredRegion).toHaveTextContent(/Level 1 Mastered!/i)
+  })
+
+  it("displays 1 active / 8 total and marks tail tokens cut off in greedy mode (temperature = 0)", () => {
+    renderLevel1()
+
+    const tryTab = screen.getByRole("tab", { name: /try/i })
+    fireEvent.click(tryTab)
+
+    const tempSlider = screen.getByRole("slider", { name: /temperature/i })
+    fireEvent.change(tempSlider, { target: { value: "0" } })
+
+    expect(screen.getByText(/1 active \/ 8 total/i)).toBeInTheDocument()
+    const cutOffBadges = screen.getAllByText(/cut off/i)
+    expect(cutOffBadges.length).toBe(7)
   })
 
   it("renders the Recap section with key takeaways", () => {

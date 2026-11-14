@@ -19,7 +19,7 @@ import {
   DEFAULT_CANDIDATE_TOKENS,
   PROMPT_TEXT,
   computeSamplingDistribution,
-  sample,
+  sampleN,
   type SamplingTokenResult,
 } from "@/lib/sampling"
 
@@ -35,8 +35,12 @@ export function Level1Component({ onComplete }: LevelProps) {
   const [sampledTokens, setSampledTokens] = React.useState<string[]>([])
 
   // Challenge goal completion states
-  const [goal1Passed, setGoal1Passed] = React.useState<boolean>(false)
-  const [goal2Passed, setGoal2Passed] = React.useState<boolean>(false)
+  const [goal1Passed, setGoal1Passed] = React.useState<boolean>(isCompleted)
+  const [goal2Passed, setGoal2Passed] = React.useState<boolean>(isCompleted)
+
+  const isGoal1Effective = goal1Passed || isCompleted
+  const isGoal2Effective = goal2Passed || isCompleted
+  const isChallengeCompleted = (goal1Passed && goal2Passed) || isCompleted
 
   // Compute live distribution
   const distribution: SamplingTokenResult[] = React.useMemo(() => {
@@ -61,14 +65,7 @@ export function Level1Component({ onComplete }: LevelProps) {
   // Sample 20x handler
   const handleSample20 = React.useCallback(() => {
     const finalProbs = distribution.map((d) => d.finalProb)
-    const samples: string[] = []
-
-    for (let i = 0; i < 20; i++) {
-      const idx = sample(finalProbs, Math.random)
-      if (idx >= 0 && idx < distribution.length) {
-        samples.push(distribution[idx].token)
-      }
-    }
+    const samples = sampleN(finalProbs, 20).map((idx) => distribution[idx].token)
 
     setSampledTokens(samples)
 
@@ -657,7 +654,7 @@ export function Level1Component({ onComplete }: LevelProps) {
               <h3 className="text-xl font-bold tracking-tight">
                 Level 1 Challenge: Taming the Tail
               </h3>
-              {goal1Passed && goal2Passed ? (
+              {isChallengeCompleted ? (
                 <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white">
                   Completed ✓
                 </Badge>
@@ -674,7 +671,7 @@ export function Level1Component({ onComplete }: LevelProps) {
           {/* Goal 1 Card */}
           <Card
             className={
-              goal1Passed
+              isGoal1Effective
                 ? "border-emerald-500/40 bg-emerald-500/5"
                 : "bg-card border"
             }
@@ -684,12 +681,12 @@ export function Level1Component({ onComplete }: LevelProps) {
                 <div className="flex items-start gap-2.5">
                   <div
                     className={`flex size-6 shrink-0 items-center justify-center rounded-full mt-0.5 ${
-                      goal1Passed
+                      isGoal1Effective
                         ? "bg-emerald-600 text-white"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {goal1Passed ? (
+                    {isGoal1Effective ? (
                       <CheckCircle2 className="size-4" />
                     ) : (
                       <Target className="size-4" />
@@ -706,19 +703,19 @@ export function Level1Component({ onComplete }: LevelProps) {
                 </div>
 
                 <Badge
-                  variant={goal1Passed ? "default" : "outline"}
+                  variant={isGoal1Effective ? "default" : "outline"}
                   className={
-                    goal1Passed
+                    isGoal1Effective
                       ? "bg-emerald-600 hover:bg-emerald-600 text-white text-xs"
                       : "text-muted-foreground text-xs"
                   }
                 >
-                  {goal1Passed ? "Passed ✓" : "Pending"}
+                  {isGoal1Effective ? "Passed ✓" : "Pending"}
                 </Badge>
               </div>
 
               <div className="text-xs text-muted-foreground pl-8">
-                {goal1Passed ? (
+                {isGoal1Effective ? (
                   <span className="text-emerald-600 font-medium">
                     ✓ Goal met! Paris answered 20/20 times.
                   </span>
@@ -735,7 +732,7 @@ export function Level1Component({ onComplete }: LevelProps) {
           {/* Goal 2 Card */}
           <Card
             className={
-              goal2Passed
+              isGoal2Effective
                 ? "border-emerald-500/40 bg-emerald-500/5"
                 : "bg-card border"
             }
@@ -745,12 +742,12 @@ export function Level1Component({ onComplete }: LevelProps) {
                 <div className="flex items-start gap-2.5">
                   <div
                     className={`flex size-6 shrink-0 items-center justify-center rounded-full mt-0.5 ${
-                      goal2Passed
+                      isGoal2Effective
                         ? "bg-emerald-600 text-white"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    {goal2Passed ? (
+                    {isGoal2Effective ? (
                       <CheckCircle2 className="size-4" />
                     ) : (
                       <Target className="size-4" />
@@ -768,19 +765,19 @@ export function Level1Component({ onComplete }: LevelProps) {
                 </div>
 
                 <Badge
-                  variant={goal2Passed ? "default" : "outline"}
+                  variant={isGoal2Effective ? "default" : "outline"}
                   className={
-                    goal2Passed
+                    isGoal2Effective
                       ? "bg-emerald-600 hover:bg-emerald-600 text-white text-xs"
                       : "text-muted-foreground text-xs"
                   }
                 >
-                  {goal2Passed ? "Passed ✓" : "Pending"}
+                  {isGoal2Effective ? "Passed ✓" : "Pending"}
                 </Badge>
               </div>
 
               <div className="text-xs text-muted-foreground pl-8">
-                {goal2Passed ? (
+                {isGoal2Effective ? (
                   <span className="text-emerald-600 font-medium">
                     ✓ Goal met! Sampled at least 4 distinct tokens without
                     picking low-probability tail tokens.
@@ -822,7 +819,7 @@ export function Level1Component({ onComplete }: LevelProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-3 pt-2">
-              {sampledTokens.length > 0 && (
+              {sampledTokens.length > 0 ? (
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between font-mono text-muted-foreground">
                     <span>
@@ -845,10 +842,21 @@ export function Level1Component({ onComplete }: LevelProps) {
                     ))}
                   </div>
                 </div>
+              ) : (
+                <div className="text-xs text-muted-foreground italic py-2">
+                  Click &quot;Sample 20× &amp; Test Goals&quot; to test your
+                  current temperature, top-k, and top-p settings against the
+                  challenge objectives.
+                </div>
               )}
 
-              {goal1Passed && goal2Passed && (
-                <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
+              {isChallengeCompleted && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400"
+                >
                   <Sparkles className="size-4 shrink-0 text-emerald-600" />
                   <span>
                     <strong>Level 1 Mastered!</strong> Both goals achieved.

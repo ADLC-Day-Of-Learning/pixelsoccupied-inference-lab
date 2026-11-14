@@ -8,6 +8,7 @@ import {
   createSeededRng,
   computeSamplingDistribution,
   DEFAULT_CANDIDATE_TOKENS,
+  type SamplingDistributionParams,
 } from "./sampling"
 
 describe("sampling math (src/lib/sampling.ts)", () => {
@@ -235,14 +236,25 @@ describe("sampling math (src/lib/sampling.ts)", () => {
       }
     })
 
-    it("supports Challenge 1: greedy or topK=1 assigns 100% to Paris", () => {
-      const greedyDist = computeSamplingDistribution(DEFAULT_CANDIDATE_TOKENS, {
+    it("supports Challenge 1: greedy or topK=1 assigns 100% to Paris and cuts off non-argmax tokens", () => {
+      const greedyParams: SamplingDistributionParams = {
         temperature: 0.0,
         topK: 8,
         topP: 1.0,
-      })
+      }
+      const greedyDist = computeSamplingDistribution(
+        DEFAULT_CANDIDATE_TOKENS,
+        greedyParams
+      )
       expect(greedyDist[0].token).toBe("Paris")
       expect(greedyDist[0].finalProb).toBe(1.0)
+      expect(greedyDist[0].isCutOff).toBe(false)
+
+      // In greedy decoding, all non-argmax tokens should be marked as cut off
+      for (let i = 1; i < greedyDist.length; i++) {
+        expect(greedyDist[i].finalProb).toBe(0)
+        expect(greedyDist[i].isCutOff).toBe(true)
+      }
 
       const top1Dist = computeSamplingDistribution(DEFAULT_CANDIDATE_TOKENS, {
         temperature: 1.0,
@@ -251,6 +263,11 @@ describe("sampling math (src/lib/sampling.ts)", () => {
       })
       expect(top1Dist[0].token).toBe("Paris")
       expect(top1Dist[0].finalProb).toBe(1.0)
+      expect(top1Dist[0].isCutOff).toBe(false)
+      for (let i = 1; i < top1Dist.length; i++) {
+        expect(top1Dist[i].finalProb).toBe(0)
+        expect(top1Dist[i].isCutOff).toBe(true)
+      }
     })
   })
 })
