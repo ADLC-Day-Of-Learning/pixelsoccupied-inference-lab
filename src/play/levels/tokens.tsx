@@ -21,9 +21,25 @@ import {
   computeTokenizerStats,
   checkSentenceChallenge,
   checkWordChallenge,
-  getTokenColorClasses,
   SAMPLE_PRESETS,
 } from "@/lib/tokenizer"
+
+/**
+ * Color cycling classes for token chips in Try and Challenge views.
+ * Designed for WCAG AA contrast in both light and dark themes.
+ */
+const TOKEN_COLOR_PALETTE = [
+  "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
+  "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
+  "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+  "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
+]
+
+function getTokenColorClasses(index: number): string {
+  return TOKEN_COLOR_PALETTE[index % TOKEN_COLOR_PALETTE.length]
+}
 
 interface TokenChipProps {
   text: string
@@ -72,7 +88,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
     [challengeSentence]
   )
   const sentenceTokens = React.useMemo(
-    () => tokenize(challengeSentence),
+    () => tokenize(challengeSentence.trim()),
     [challengeSentence]
   )
 
@@ -81,7 +97,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
     [challengeWord]
   )
   const wordTokens = React.useMemo(
-    () => tokenize(challengeWord),
+    () => tokenize(challengeWord.trim()),
     [challengeWord]
   )
 
@@ -124,7 +140,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
           <Card className="bg-muted/30 border-dashed">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Layers className="size-4 text-primary" />
+                <Layers className="size-4 text-primary" aria-hidden="true" />
                 <span>The Tokenization Pipeline</span>
               </CardTitle>
             </CardHeader>
@@ -140,7 +156,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                   </span>
                 </div>
 
-                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
 
                 {/* 2. Token chunks */}
                 <div className="flex flex-col items-center rounded-md border bg-card p-2.5 shadow-2xs">
@@ -163,7 +179,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                   </div>
                 </div>
 
-                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
 
                 {/* 3. Integer IDs */}
                 <div className="flex flex-col items-center rounded-md border bg-card p-2.5 shadow-2xs min-w-[110px]">
@@ -171,11 +187,11 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                     Token IDs
                   </span>
                   <span className="font-mono text-primary font-bold">
-                    [118, 124, 122, 2]
+                    [365, 370, 368, 2]
                   </span>
                 </div>
 
-                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
 
                 {/* 4. Model */}
                 <div className="flex flex-col items-center rounded-md border bg-card p-2.5 shadow-2xs min-w-[90px]">
@@ -183,12 +199,12 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                     LLM
                   </span>
                   <div className="flex items-center gap-1 font-semibold text-xs">
-                    <Cpu className="size-3.5 text-primary" />
+                    <Cpu className="size-3.5 text-primary" aria-hidden="true" />
                     <span>Model</span>
                   </div>
                 </div>
 
-                <ArrowRight className="size-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
 
                 {/* 5. Next token ID */}
                 <div className="flex flex-col items-center rounded-md border bg-card p-2.5 shadow-2xs min-w-[100px]">
@@ -215,7 +231,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
               className="gap-1.5"
             >
               <span>Continue to Try</span>
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -245,6 +261,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                   key={preset.id}
                   size="sm"
                   variant={tryText === preset.text ? "default" : "outline"}
+                  aria-pressed={tryText === preset.text}
                   onClick={() => setTryText(preset.text)}
                   className="h-8 text-xs"
                 >
@@ -321,7 +338,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                  <Hash className="size-4 text-primary" />
+                  <Hash className="size-4 text-primary" aria-hidden="true" />
                   <span>Token Chunks &amp; IDs ({tryTokens.length})</span>
                 </CardTitle>
                 <Badge variant="outline" className="font-mono text-[10px]">
@@ -373,7 +390,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
               className="gap-1.5"
             >
               <span>Continue to Challenge</span>
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -412,7 +429,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Target className="size-4 text-primary" />
+                  <Target className="size-4 text-primary" aria-hidden="true" />
                   <span>Goal 1: High-Efficiency Sentence</span>
                 </CardTitle>
                 <Badge
@@ -428,7 +445,10 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p
+                id="challenge-sentence-desc"
+                className="text-xs text-muted-foreground leading-relaxed"
+              >
                 Write a sentence of <strong>at least 8 words</strong> that uses{" "}
                 <strong>at most 10 tokens</strong>.
               </p>
@@ -444,6 +464,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                 <Input
                   id="challenge-sentence-input"
                   aria-labelledby="challenge-sentence-label"
+                  aria-describedby="challenge-sentence-desc"
                   value={challengeSentence}
                   onChange={(e) => setChallengeSentence(e.target.value)}
                   placeholder="e.g. The quick brown fox jumps over the lazy dog."
@@ -503,7 +524,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <Target className="size-4 text-primary" />
+                  <Target className="size-4 text-primary" aria-hidden="true" />
                   <span>Goal 2: Token-Heavy Word</span>
                 </CardTitle>
                 <Badge
@@ -519,7 +540,10 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <p
+                id="challenge-word-desc"
+                className="text-xs text-muted-foreground leading-relaxed"
+              >
                 Find a single word that splits into{" "}
                 <strong>4 or more tokens</strong>.
               </p>
@@ -535,6 +559,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                 <Input
                   id="challenge-word-input"
                   aria-labelledby="challenge-word-label"
+                  aria-describedby="challenge-word-desc"
                   value={challengeWord}
                   onChange={(e) => setChallengeWord(e.target.value)}
                   placeholder="e.g. antidisestablishmentarianism or supercalifragilistic"
@@ -584,6 +609,8 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
 
           {/* Overall completion notification */}
           <Card
+            role="status"
+            aria-live="polite"
             className={
               isCompleted || bothChallengesPassed
                 ? "border-emerald-500/40 bg-emerald-500/5"
@@ -600,9 +627,9 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
                   }`}
                 >
                   {isCompleted || bothChallengesPassed ? (
-                    <CheckCircle2 className="size-5" />
+                    <CheckCircle2 className="size-5" aria-hidden="true" />
                   ) : (
-                    <Zap className="size-5" />
+                    <Zap className="size-5" aria-hidden="true" />
                   )}
                 </div>
                 <div className="space-y-0.5">
@@ -633,7 +660,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
               className="gap-1.5"
             >
               <span>View Recap</span>
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -651,7 +678,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
 
           <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
             <div className="flex items-start gap-2.5 text-sm">
-              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 <strong>Models read and write tokens, not words:</strong> Large
                 language models operate entirely on discrete integer token IDs
@@ -660,7 +687,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
             </div>
 
             <div className="flex items-start gap-2.5 text-sm">
-              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 <strong>Inference scales with token count:</strong> Memory
                 allocation (KV cache), prefill compute, per-step decode latency,
@@ -669,7 +696,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
             </div>
 
             <div className="flex items-start gap-2.5 text-sm">
-              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 <strong>Common words are cheap, rare strings are expensive:</strong>{" "}
                 High-frequency English words compress into 1 token, while rare
@@ -679,7 +706,7 @@ export function TokensLevelComponent({ onComplete }: LevelProps) {
             </div>
 
             <div className="flex items-start gap-2.5 text-sm">
-              <Sparkles className="size-4 text-primary shrink-0 mt-0.5" />
+              <Sparkles className="size-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 <strong>Rule of Thumb:</strong> On average in English, expect{" "}
                 <strong>~4 characters</strong> or <strong>~0.75 words</strong>{" "}

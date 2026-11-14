@@ -8,7 +8,6 @@ import {
   isSingleWord,
   checkSentenceChallenge,
   checkWordChallenge,
-  getTokenColorClasses,
   SAMPLE_PRESETS,
 } from "./tokenizer"
 
@@ -143,6 +142,20 @@ describe("src/lib/tokenizer.ts", () => {
       expect(result.tokenCount).toBeGreaterThan(10)
       expect(result.passes).toBe(false)
     })
+
+    it("handles leading and trailing whitespace without falsely inflating token count", () => {
+      const result = checkSentenceChallenge(
+        "  The quick brown fox jumps over the lazy dog.  "
+      )
+      expect(result.wordCount).toBe(9)
+      expect(result.tokenCount).toBeLessThanOrEqual(10)
+      expect(result.passes).toBe(true)
+
+      const emptyResult = checkSentenceChallenge("   ")
+      expect(emptyResult.wordCount).toBe(0)
+      expect(emptyResult.tokenCount).toBe(0)
+      expect(emptyResult.passes).toBe(false)
+    })
   })
 
   describe("checkWordChallenge", () => {
@@ -184,14 +197,6 @@ describe("src/lib/tokenizer.ts", () => {
       expect(SAMPLE_PRESETS.map((p) => p.id)).toContain("rare")
       expect(SAMPLE_PRESETS.map((p) => p.id)).toContain("numbers")
       expect(SAMPLE_PRESETS.map((p) => p.id)).toContain("code")
-    })
-
-    it("cycles color classes consistently", () => {
-      const c0 = getTokenColorClasses(0)
-      const c1 = getTokenColorClasses(1)
-      const c6 = getTokenColorClasses(6)
-      expect(c0).toBe(c6)
-      expect(c0).not.toBe(c1)
     })
   })
 })

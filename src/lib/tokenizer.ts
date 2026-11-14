@@ -412,8 +412,9 @@ export function isSingleWord(text: string): boolean {
  * "Write a sentence of at least 8 words that uses at most 10 tokens."
  */
 export function checkSentenceChallenge(text: string): SentenceChallengeResult {
-  const wordCount = countWords(text)
-  const tokenCount = countTokens(text)
+  const trimmed = text.trim()
+  const wordCount = countWords(trimmed)
+  const tokenCount = countTokens(trimmed)
   const passes = wordCount >= 8 && tokenCount <= 10
 
   return {
@@ -437,23 +438,6 @@ export function checkWordChallenge(text: string): WordChallengeResult {
     isSingleWord: isSingle,
     tokenCount,
   }
-}
-
-/**
- * Color cycling classes for token chips in Try and Challenge views.
- * Designed for WCAG AA contrast in both light and dark themes.
- */
-const TOKEN_COLOR_PALETTE = [
-  "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
-  "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
-  "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
-  "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
-  "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
-]
-
-export function getTokenColorClasses(index: number): string {
-  return TOKEN_COLOR_PALETTE[index % TOKEN_COLOR_PALETTE.length]
 }
 
 /**

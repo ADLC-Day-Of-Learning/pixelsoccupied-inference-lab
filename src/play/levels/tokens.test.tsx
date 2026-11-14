@@ -51,6 +51,99 @@ describe("Level 0: TokensLevelComponent", () => {
     ).toBeInTheDocument()
   })
 
+  it("displays deterministic token IDs [365, 370, 368, 2] in the Learn pipeline diagram", () => {
+    render(
+      <LevelLayout level={level0} isCompleted={false} onBack={vi.fn()}>
+        <TokensLevelComponent onComplete={vi.fn()} />
+      </LevelLayout>
+    )
+
+    expect(screen.getByText("[365, 370, 368, 2]")).toBeInTheDocument()
+  })
+
+  it("exposes aria-pressed selection state on Try preset buttons", () => {
+    render(
+      <LevelLayout level={level0} isCompleted={false} onBack={vi.fn()}>
+        <TokensLevelComponent onComplete={vi.fn()} />
+      </LevelLayout>
+    )
+
+    fireEvent.click(screen.getByRole("tab", { name: /try/i }))
+
+    const sampleBtn = screen.getByRole("button", { name: /sample sentence/i })
+    const numbersBtn = screen.getByRole("button", { name: /numbers/i })
+
+    expect(sampleBtn).toHaveAttribute("aria-pressed", "true")
+    expect(numbersBtn).toHaveAttribute("aria-pressed", "false")
+
+    fireEvent.click(numbersBtn)
+    expect(sampleBtn).toHaveAttribute("aria-pressed", "false")
+    expect(numbersBtn).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("links challenge inputs to constraint instructions via aria-describedby", () => {
+    render(
+      <LevelLayout level={level0} isCompleted={false} onBack={vi.fn()}>
+        <TokensLevelComponent onComplete={vi.fn()} />
+      </LevelLayout>
+    )
+
+    fireEvent.click(screen.getByRole("tab", { name: /challenge/i }))
+
+    const sentenceInput = screen.getByRole("textbox", {
+      name: /your sentence/i,
+    })
+    const wordInput = screen.getByRole("textbox", {
+      name: /your word/i,
+    })
+
+    expect(sentenceInput).toHaveAttribute(
+      "aria-describedby",
+      "challenge-sentence-desc"
+    )
+    expect(wordInput).toHaveAttribute(
+      "aria-describedby",
+      "challenge-word-desc"
+    )
+  })
+
+  it("includes role='status' and aria-live='polite' on completion notification card", () => {
+    render(
+      <LevelLayout level={level0} isCompleted={false} onBack={vi.fn()}>
+        <TokensLevelComponent onComplete={vi.fn()} />
+      </LevelLayout>
+    )
+
+    fireEvent.click(screen.getByRole("tab", { name: /challenge/i }))
+
+    const statusRegion = screen.getByRole("status")
+    expect(statusRegion).toHaveAttribute("aria-live", "polite")
+    expect(statusRegion).toHaveTextContent(/complete both goals to pass/i)
+  })
+
+  it("trims whitespace for challenge word preview chips so chip count matches token count", () => {
+    render(
+      <LevelLayout level={level0} isCompleted={false} onBack={vi.fn()}>
+        <TokensLevelComponent onComplete={vi.fn()} />
+      </LevelLayout>
+    )
+
+    fireEvent.click(screen.getByRole("tab", { name: /challenge/i }))
+
+    const wordInput = screen.getByRole("textbox", {
+      name: /your word/i,
+    })
+
+    // Input word with leading and trailing whitespace
+    fireEvent.change(wordInput, { target: { value: "  dog   " } })
+
+    const wordPreview = screen.getByTestId("word-chips-preview")
+    expect(wordPreview).toBeInTheDocument()
+    // Should render only 1 chip for "dog", not extra whitespace chips
+    expect(screen.getByTestId("token-chip-0")).toHaveTextContent("dog")
+    expect(screen.queryByTestId("token-chip-1")).not.toBeInTheDocument()
+  })
+
   it("updates live token chips and counts in Try section when typing or choosing presets", () => {
     render(
       <LevelLayout level={level0} isCompleted={false} onBack={vi.fn()}>
@@ -123,5 +216,21 @@ describe("Level 0: TokensLevelComponent", () => {
     // Now both pass -> onComplete must be called!
     expect(handleComplete).toHaveBeenCalledTimes(1)
     expect(screen.getByText("Level 0 Completed!")).toBeInTheDocument()
+  })
+
+  it("cycles token chip color classes across rendered tokens", () => {
+    render(
+      <LevelLayout level={level0} isCompleted={false} onBack={vi.fn()}>
+        <TokensLevelComponent onComplete={vi.fn()} />
+      </LevelLayout>
+    )
+
+    fireEvent.click(screen.getByRole("tab", { name: /try/i }))
+
+    const chip0 = screen.getByTestId("token-chip-0")
+    const chip1 = screen.getByTestId("token-chip-1")
+    expect(chip0.className).toContain("text-blue-700")
+    expect(chip1.className).toContain("text-emerald-700")
+    expect(chip0.className).not.toEqual(chip1.className)
   })
 })
