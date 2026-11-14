@@ -176,11 +176,17 @@ export function isLevelUnlocked(
     if (prevLevel) {
       return isLevelCompleted(state, prevLevel.id, levels)
     }
-    const precedingRegistered = levels
-      .filter((l) => l.number < levelNum)
-      .sort((a, b) => b.number - a.number)[0]
-    if (precedingRegistered) {
-      return isLevelCompleted(state, precedingRegistered.id, levels)
+    // If the immediately preceding level number is not registered in levels,
+    // unlock if the highest preceding registered level is completed (or if none, unlock).
+    const precedingRegisteredLevels = levels.filter((l) => l.number < levelNum)
+    if (precedingRegisteredLevels.length > 0) {
+      const highestPreceding = precedingRegisteredLevels.reduce((prev, curr) =>
+        curr.number > prev.number ? curr : prev
+      )
+      return (
+        highestPreceding.number === 0 ||
+        isLevelCompleted(state, highestPreceding.id, levels)
+      )
     }
     return (
       state.completedLevelIds.includes(`level-${prevNum}`) ||

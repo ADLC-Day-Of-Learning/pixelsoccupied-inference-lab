@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeAll, describe, it, expect } from "vitest"
+import { beforeAll, describe, it, expect, vi } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
 import { App } from "@/App"
 
@@ -651,3 +651,81 @@ describe("CalculatorPage stacked GPU memory bar", () => {
     )
   })
 })
+
+describe("CalculatorPage mobile sticky summary bar", () => {
+  it("renders verdict and max concurrent requests in sticky summary bar with md:hidden", () => {
+    render(<CalculatorPage />)
+
+    const summaryBar = screen.getByTestId("mobile-sticky-summary")
+    expect(summaryBar).toBeInTheDocument()
+    expect(summaryBar).toHaveClass("md:hidden")
+    expect(summaryBar).toHaveClass("sticky")
+    expect(summaryBar).toHaveClass("bottom-0")
+
+    // Button has accessible role and name indicating fit and concurrency
+    const summaryButton = within(summaryBar).getByRole("button", {
+      name: /fits.*104 requests.*scroll to full results/i,
+    })
+    expect(summaryButton).toBeInTheDocument()
+    expect(within(summaryBar).getByText("Fits")).toBeInTheDocument()
+    expect(within(summaryBar).getByText("104")).toBeInTheDocument()
+    expect(within(summaryBar).getByText("requests")).toBeInTheDocument()
+  })
+
+  it("updates verdict and max concurrent requests dynamically when inputs change", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const summaryBar = screen.getByTestId("mobile-sticky-summary")
+
+    // Initially fits
+    expect(within(summaryBar).getByText("Fits")).toBeInTheDocument()
+    expect(within(summaryBar).getByText("104")).toBeInTheDocument()
+
+    // Change model preset to Llama-3-70B (doesn't fit on 1x 80GB GPU)
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    // Summary bar immediately reflects "Does Not Fit", shortfall, and 0 requests
+    expect(within(summaryBar).getByText("Does Not Fit")).toBeInTheDocument()
+    expect(within(summaryBar).getByText(/68\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(within(summaryBar).getByText("0")).toBeInTheDocument()
+    expect(
+      within(summaryBar).getByRole("button", {
+        name: /does not fit.*68\.0 gb shortfall.*0 requests.*scroll to full results/i,
+      })
+    ).toBeInTheDocument()
+
+    // Increase GPU count to 2 -> flips back to Fits
+    const gpu2Btn = screen.getByRole("radio", { name: "2" })
+    await user.click(gpu2Btn)
+
+    expect(within(summaryBar).getByText("Fits")).toBeInTheDocument()
+    expect(within(summaryBar).queryByText("Does Not Fit")).not.toBeInTheDocument()
+    expect(within(summaryBar).queryByText(/shortfall/i)).not.toBeInTheDocument()
+    expect(within(summaryBar).getByText("requests")).toBeInTheDocument()
+  })
+
+  it("triggers smooth scrollIntoView on the results section when tapped", async () => {
+    const user = userEvent.setup()
+    const scrollIntoViewMock = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock
+
+    render(<CalculatorPage />)
+
+    const summaryBar = screen.getByTestId("mobile-sticky-summary")
+    const summaryButton = within(summaryBar).getByRole("button", {
+      name: /scroll to full results/i,
+    })
+
+    await user.click(summaryButton)
+
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1)
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "smooth" })
+  })
+})
+

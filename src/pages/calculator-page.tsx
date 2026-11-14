@@ -69,6 +69,12 @@ const GPU_PRESET_ITEMS: Record<string, string> = {
 }
 
 export function CalculatorPage() {
+  const resultsRef = React.useRef<HTMLDivElement>(null)
+
+  const scrollToResults = () => {
+    resultsRef.current?.scrollIntoView?.({ behavior: "smooth" })
+  }
+
   // Model state
   const [modelPreset, setModelPreset] = React.useState<string>("llama-3-8b")
   const [paramsBillions, setParamsBillions] = React.useState<number>(8)
@@ -232,7 +238,7 @@ export function CalculatorPage() {
 
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pb-16 md:pb-8">
       {/* Main Grid: Inputs on Left/Top, Outputs on Right/Bottom */}
       <div className="grid gap-6 lg:grid-cols-12">
         {/* INPUTS SECTION */}
@@ -540,7 +546,7 @@ export function CalculatorPage() {
         </div>
 
         {/* OUTPUTS SECTION */}
-        <div className="space-y-4 lg:col-span-7">
+        <div ref={resultsRef} className="space-y-4 lg:col-span-7 scroll-mt-16">
           {/* HERO RESULT PANEL */}
           <Card
             data-testid="hero-result-panel"
@@ -973,6 +979,74 @@ export function CalculatorPage() {
             Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.
           </p>
         </div>
+      </div>
+
+      {/* Mobile Sticky Summary Bar (<768px) */}
+      <div
+        data-testid="mobile-sticky-summary"
+        className="sticky bottom-0 z-20 -mx-4 -mb-4 border-t border-border bg-background/95 p-2.5 backdrop-blur-sm shadow-md md:hidden"
+      >
+        <button
+          type="button"
+          onClick={scrollToResults}
+          aria-label={
+            fitResult.fits
+              ? `Fits: ${maxConcurrency.toLocaleString()} requests. Scroll to full results.`
+              : `Does Not Fit: ${fitResult.shortfallGb.toFixed(1)} GB Shortfall, 0 requests. Scroll to full results.`
+          }
+          className={cn(
+            "flex w-full items-center justify-between gap-3 rounded-lg border p-2.5 text-left shadow-xs transition-colors cursor-pointer",
+            fitResult.fits
+              ? "border-emerald-500/30 bg-emerald-500/[0.08] dark:border-emerald-500/20 dark:bg-emerald-500/[0.12] hover:bg-emerald-500/[0.12]"
+              : "border-destructive/30 bg-destructive/[0.08] dark:border-destructive/20 dark:bg-destructive/[0.12] hover:bg-destructive/[0.12]"
+          )}
+        >
+          {/* Verdict Info */}
+          <div className="flex items-center gap-2 min-w-0">
+            {fitResult.fits ? (
+              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="size-4 text-destructive shrink-0" />
+            )}
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span
+                className={cn(
+                  "text-sm font-bold tracking-tight",
+                  fitResult.fits
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-destructive"
+                )}
+              >
+                {fitResult.fits ? "Fits" : "Does Not Fit"}
+              </span>
+              {!fitResult.fits && (
+                <Badge
+                  variant="destructive"
+                  className="text-[10px] font-semibold px-1.5 py-0 h-4"
+                >
+                  {fitResult.shortfallGb.toFixed(1)} GB Shortfall
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Concurrency Info & Action Hint */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 text-right">
+              <Users className="size-3.5 text-muted-foreground" />
+              <span className="text-sm font-bold text-foreground">
+                {maxConcurrency.toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                requests
+              </span>
+            </div>
+            <ChevronDown
+              className="size-4 text-muted-foreground shrink-0"
+              aria-hidden="true"
+            />
+          </div>
+        </button>
       </div>
     </div>
   )

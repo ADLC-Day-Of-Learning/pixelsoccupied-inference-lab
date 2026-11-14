@@ -182,6 +182,32 @@ describe("model formulas", () => {
         "Does not fit: weights need 16.4 GB, but only 16 GB is available"
       )
     })
+
+    it("evaluates 80 GB weights on 80 GB GPU with 8 GB overhead as fits: false with 8 GB shortfall", () => {
+      const result = evaluateMemoryFit({
+        parameters: 40e9, // 40B * 2 bytes (FP16) = 80 GB
+        precision: "FP16",
+        gpuMemoryBytes: 80e9,
+        gpuCount: 1,
+        overheadBytes: 8e9,
+      })
+      expect(result.fits).toBe(false)
+      expect(result.shortfallBytes).toBe(8e9)
+      expect(result.shortfallGb).toBe(8)
+    })
+
+    it("evaluates 80.1 GB weights on 80 GB GPU with 8 GB overhead as fits: false with 8.1 GB shortfall continuously", () => {
+      const result = evaluateMemoryFit({
+        parameters: 40.05e9, // 40.05B * 2 bytes (FP16) = 80.1 GB
+        precision: "FP16",
+        gpuMemoryBytes: 80e9,
+        gpuCount: 1,
+        overheadBytes: 8e9,
+      })
+      expect(result.fits).toBe(false)
+      expect(result.shortfallBytes).toBeCloseTo(8.1e9, 5)
+      expect(result.shortfallGb).toBeCloseTo(8.1, 5)
+    })
   })
 
   describe("calculateMemoryShortfall", () => {
@@ -193,6 +219,14 @@ describe("model formulas", () => {
     it("returns shortfall when weights exceed available memory after overhead", () => {
       // 75 GB weights on 80 GB GPU with 8 GB overhead (72 GB available) -> 3 GB shortfall
       expect(calculateMemoryShortfall(75e9, 80e9, 8e9)).toBe(3e9)
+    })
+
+    it("evaluates 80 GB weights on 80 GB GPU with 8 GB overhead to 8 GB shortfall", () => {
+      expect(calculateMemoryShortfall(80e9, 80e9, 8e9)).toBe(8e9)
+    })
+
+    it("evaluates 80.1 GB weights on 80 GB GPU with 8 GB overhead to 8.1 GB shortfall continuously", () => {
+      expect(calculateMemoryShortfall(80.1e9, 80e9, 8e9)).toBeCloseTo(8.1e9, 5)
     })
 
     it("returns 0 when weights fit within available memory", () => {
