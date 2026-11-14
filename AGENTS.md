@@ -44,6 +44,11 @@ It is deployed to GitHub Pages as static files.
   must start with or contain the visible label to satisfy WCAG 2.5.3 (Label in
   Name), while resolving WCAG 4.1.2 / WCAG 2.4.4 out-of-context rotor
   ambiguity.
+- **Live regions for dynamic calculation results.** Any custom container
+  displaying dynamic calculation outcomes, verdicts (e.g., 'Fits' / 'Does not
+  fit'), or error alerts outside of standard `<Alert>` components must define
+  live region semantics: `role="status"`, `aria-live="polite"`, and
+  `aria-atomic="true"` (WCAG 4.1.3).
 - **Role-based accessible test queries.** In component tests (`*.test.tsx`),
   assert the presence and accessible name of compound controls using role-based
   queries (e.g.,
@@ -109,9 +114,9 @@ npm run build
 ```
 
 Component tests (`*.test.tsx`) run under `npm test` must assert compound
-controls by accessible role (e.g., querying `radiogroup` by name) and must
-assert repeated action controls by their disambiguated accessible name (e.g.,
-`expect(screen.getByRole("button", { name: /how is this calculated.*weight memory/i })).toBeInTheDocument()`).
+controls using role-based accessible queries (e.g., querying `radiogroup` by
+name), repeated controls by disambiguated name, and dynamic calculation verdicts
+using `getByRole("status")` or `getByRole("alert")`.
 
 ## Style
 
