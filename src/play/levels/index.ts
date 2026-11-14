@@ -1,13 +1,15 @@
 import type { LevelDefinition } from "../types"
+import { Level1Component } from "./level-1"
 import { Level2Component } from "./level-2"
 import { Level4Component } from "./level-4"
-import { TokensLevelComponent } from "./tokens"
 import { Level5Component } from "./level-5"
+import { TokensLevelComponent } from "./tokens"
 
+export { Level1Component } from "./level-1"
 export { Level2Component } from "./level-2"
 export { Level4Component } from "./level-4"
-export { TokensLevelComponent } from "./tokens"
 export { Level5Component } from "./level-5"
+export { TokensLevelComponent } from "./tokens"
 
 export const level0: LevelDefinition = {
   id: "tokens",
@@ -15,6 +17,15 @@ export const level0: LevelDefinition = {
   title: "Tokens",
   concept: "What the model actually reads: chunks of text mapped to integer IDs.",
   Component: TokensLevelComponent,
+}
+
+export const level1: LevelDefinition = {
+  id: "sampling",
+  number: 1,
+  title: "Sampling",
+  concept:
+    "An LLM picks each next token by sampling from a probability distribution. Temperature reshapes it, and top-k / top-p cut off the tail.",
+  Component: Level1Component,
 }
 
 export const level2: LevelDefinition = {
@@ -49,6 +60,7 @@ export const level5: LevelDefinition = {
  */
 export const LEVELS: LevelDefinition[] = [
   level0,
+  level1,
   level2,
   level4,
   level5,
