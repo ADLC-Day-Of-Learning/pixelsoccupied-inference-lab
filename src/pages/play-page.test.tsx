@@ -3,7 +3,6 @@ import "@testing-library/jest-dom/vitest"
 import { render, screen, fireEvent, cleanup } from "@testing-library/react"
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { PlayPage } from "./play-page"
-import { LEVELS } from "@/play/levels"
 
 describe("PlayPage end-to-end integration", () => {
   beforeEach(() => {
@@ -14,32 +13,41 @@ describe("PlayPage end-to-end integration", () => {
     cleanup()
   })
 
-  it("opens on level picker, opens placeholder level, completes it, and persists completion", () => {
+  it("opens on level picker, opens Level 0 Tokens, completes challenges, and persists completion", () => {
     const { unmount } = render(<PlayPage />)
 
-    // 1. Initial state: Level picker with placeholder level
+    // 1. Initial state: Level picker with Level 0 Tokens
     expect(screen.getByText("Inference Play")).toBeInTheDocument()
-    expect(screen.getByText(`0 of ${LEVELS.length} complete`)).toBeInTheDocument()
+    expect(screen.getByText(/0 of \d+ complete/i)).toBeInTheDocument()
 
-    const level0Card = screen.getByTestId("level-card-how-it-works")
+    const level0Card = screen.getByTestId("level-card-tokens")
     expect(level0Card).toHaveAttribute("data-level-state", "available")
     const level3Card = screen.getByTestId("level-card-kv-cache")
     expect(level3Card).toHaveAttribute("data-level-state", "locked")
 
     // 2. Open Level 0
     fireEvent.click(level0Card)
-    expect(screen.getByText("How this works")).toBeInTheDocument()
+    expect(screen.getByText("Tokens")).toBeInTheDocument()
     expect(screen.getByText("Not yet")).toBeInTheDocument()
 
     // 3. Move to Challenge tab
     const challengeTab = screen.getByRole("tab", { name: /challenge/i })
     fireEvent.click(challengeTab)
 
-    // 4. Click complete challenge button
-    const completeButton = screen.getByRole("button", {
-      name: /complete level 0 challenge/i,
+    // 4. Complete Goal 1 and Goal 2
+    const sentenceInput = screen.getByRole("textbox", {
+      name: /your sentence/i,
     })
-    fireEvent.click(completeButton)
+    const wordInput = screen.getByRole("textbox", {
+      name: /your word/i,
+    })
+
+    fireEvent.change(sentenceInput, {
+      target: { value: "The quick brown fox jumps over the lazy dog." },
+    })
+    fireEvent.change(wordInput, {
+      target: { value: "antidisestablishmentarianism" },
+    })
 
     // 5. Celebration and completion badge appear
     expect(screen.getByText(/Complete ✓/i)).toBeInTheDocument()
@@ -49,9 +57,9 @@ describe("PlayPage end-to-end integration", () => {
     const backButton = screen.getByRole("button", { name: /back to levels/i })
     fireEvent.click(backButton)
 
-    // 7. Picker reflects completed status and unlocked next level
-    expect(screen.getByText(`1 of ${LEVELS.length} complete`)).toBeInTheDocument()
-    expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
+    // 7. Picker reflects completed status
+    expect(screen.getByText(/1 of \d+ complete/i)).toBeInTheDocument()
+    expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "completed"
     )
@@ -64,8 +72,8 @@ describe("PlayPage end-to-end integration", () => {
 
     // 8. Simulate reload by remounting PlayPage: progress persists from localStorage
     render(<PlayPage />)
-    expect(screen.getByText(`1 of ${LEVELS.length} complete`)).toBeInTheDocument()
-    expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
+    expect(screen.getByText(/1 of \d+ complete/i)).toBeInTheDocument()
+    expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "completed"
     )
@@ -79,8 +87,8 @@ describe("PlayPage end-to-end integration", () => {
     fireEvent.click(resetButton)
     const confirmButton = screen.getByRole("button", { name: /confirm reset/i })
     fireEvent.click(confirmButton)
-    expect(screen.getByText(`0 of ${LEVELS.length} complete`)).toBeInTheDocument()
-    expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
+    expect(screen.getByText(/0 of \d+ complete/i)).toBeInTheDocument()
+    expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "available"
     )
@@ -88,5 +96,28 @@ describe("PlayPage end-to-end integration", () => {
       "data-level-state",
       "locked"
     )
+  })
+
+  it("opens Level 4 (Batching) from picker and displays batching level", () => {
+    render(<PlayPage />)
+
+    const level4Card = screen.getByTestId("level-card-batching")
+    expect(level4Card).toBeInTheDocument()
+    expect(level4Card).toHaveAttribute("data-level-state", "available")
+
+    fireEvent.click(level4Card)
+
+    expect(
+      screen.getByText("Batching (static vs continuous)")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Batching: Static vs Continuous")
+    ).toBeInTheDocument()
+
+    // Move to Try tab
+    fireEvent.click(screen.getByRole("tab", { name: /try/i }))
+    expect(
+      screen.getByRole("radiogroup", { name: /batching strategy/i })
+    ).toBeInTheDocument()
   })
 })

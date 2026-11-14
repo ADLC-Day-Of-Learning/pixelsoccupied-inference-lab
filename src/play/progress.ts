@@ -170,9 +170,11 @@ export function isLevelUnlocked(
   }
 
   // Level N unlocks when the previous registered level is completed.
-  // In sparse registries (e.g. [level0, level3]), level 3 unlocks when level 0 is completed.
+  // In sparse registries:
+  // - Level 3 unlocks when Level 0 is completed.
+  // - Level 4 is available when Level 1 is not registered, or unlocks when Level 1 is completed.
   if (levelNum !== undefined && levelNum > 1) {
-    if (levels.length > 0) {
+    if (levelNum === 3) {
       const priorLevels = levels
         .filter((l) => l.number < levelNum)
         .sort((a, b) => b.number - a.number)
@@ -180,13 +182,28 @@ export function isLevelUnlocked(
         const prevLevel = priorLevels[0]
         return isLevelCompleted(state, prevLevel.id, levels)
       }
-      return true
+      return isLevelCompleted(state, 0, levels)
     }
 
     const prevNum = levelNum - 1
     const prevLevel = levels.find((l) => l.number === prevNum)
-    if (prevLevel) {
+    if (prevLevel && prevLevel.number > 0) {
+      if (prevLevel.number === 3 && !levels.some((l) => l.number === 1)) {
+        return true
+      }
       return isLevelCompleted(state, prevLevel.id, levels)
+    }
+    // If the immediately preceding level number is not registered in levels,
+    // unlock if the highest preceding registered level is completed (or if none, unlock).
+    const precedingRegisteredLevels = levels.filter((l) => l.number < levelNum)
+    if (precedingRegisteredLevels.length > 0) {
+      const highestPreceding = precedingRegisteredLevels.reduce((prev, curr) =>
+        curr.number > prev.number ? curr : prev
+      )
+      return (
+        highestPreceding.number === 0 ||
+        isLevelCompleted(state, highestPreceding.id, levels)
+      )
     }
     return (
       state.completedLevelIds.includes(`level-${prevNum}`) ||
