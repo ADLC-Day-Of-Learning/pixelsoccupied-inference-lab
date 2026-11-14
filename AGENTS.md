@@ -44,11 +44,22 @@ It is deployed to GitHub Pages as static files.
   must start with or contain the visible label to satisfy WCAG 2.5.3 (Label in
   Name), while resolving WCAG 4.1.2 / WCAG 2.4.4 out-of-context rotor
   ambiguity.
+- **Live regions for dynamic calculation results.** Any custom container
+  displaying dynamic calculation outcomes, verdicts (e.g., 'Fits' / 'Does not
+  fit'), or error alerts outside of standard `<Alert>` components must define
+  live region semantics: `role="status"`, `aria-live="polite"`, and
+  `aria-atomic="true"` (WCAG 4.1.3).
 - **Role-based accessible test queries.** In component tests (`*.test.tsx`),
   assert the presence and accessible name of compound controls using role-based
   queries (e.g.,
   `expect(screen.getByRole("radiogroup", { name: /.../i })).toBeInTheDocument()`)
   rather than querying unassociated child items or raw text alone.
+- **Pure domain logic in `src/lib/`.** All domain algorithms, tokenizers,
+  mathematical models, and sampling logic live in `src/lib/*.ts` as pure, typed
+  functions (inputs in, numbers or data out; no React, no DOM, and no Tailwind
+  CSS class strings or presentation styling). UI presentation styling, chip
+  color palettes, and CSS class mappings must remain in component files
+  (`src/play/levels/` or `src/components/`).
 - **One source of truth for the math.** All formulas live in
   `src/lib/model.ts` as pure, typed functions (inputs in, numbers out; no React,
   no DOM). UI code and game levels import from it; never duplicate a formula.
@@ -56,6 +67,12 @@ It is deployed to GitHub Pages as static files.
   tests in `src/lib/model.test.ts`.
 - **Show the formula.** Every calculator output displays the formula used and
   the values plugged in, so the user can check the math by hand.
+- **Verifiable walkthrough diagrams.** Educational walkthrough diagrams,
+  pipeline illustrations, and example step values in Play levels must derive
+  their displayed figures directly from canonical functions in `src/lib/` or
+  display verifiable deterministic outputs that match interactive presets in the
+  Try sandbox. Never hardcode arbitrary mock numbers that contradict
+  interactive simulator tools.
 - **Units are explicit.** Every displayed number has a unit (GB, ms, tokens/s,
   $/1M tokens). Use decimal GB (1 GB = 1e9 bytes) and say so in the UI.
 - **Estimates, not benchmarks.** Keep a visible note that results are rough
@@ -71,6 +88,9 @@ Use these unless an issue says otherwise:
 
 - Weight memory (bytes) = parameters × bytes per parameter
   (FP16/BF16 = 2, FP8 = 1, INT4 = 0.5)
+- Available memory for weights (bytes) = (GPU memory × GPUs) − overhead
+- Memory fit: model fits if weight memory ≤ available memory for weights
+- Memory shortfall (bytes) = max(0, weight memory − available memory for weights)
 - KV cache per token (bytes) = 2 × layers × KV heads × head dim × bytes per element
 - KV capacity (tokens) = (GPU memory × GPUs − weight memory − overhead) ÷ KV per token
 - Prefill time ≈ 2 × parameters × prompt tokens ÷ (peak FLOPS × utilization)
@@ -82,6 +102,8 @@ Sanity checks the tests must include:
 - 70B params at FP16 → 140 GB of weights
 - Llama-3-8B (32 layers, 8 KV heads, head dim 128) at FP16 → 131,072 bytes
   (128 KiB) of KV cache per token
+- 80 GB weights on 80 GB GPU with 8 GB overhead → 8 GB shortfall (fits: false)
+- 80.1 GB weights on 80 GB GPU with 8 GB overhead → 8.1 GB shortfall (continuous across total GPU memory boundary)
 
 ## Layout
 
@@ -92,8 +114,8 @@ src/
   components/ui/       # generated shadcn components (do not hand-edit)
   pages/               # calculator-page.tsx, play-page.tsx
   play/                # Play mode shell, level components, and progress tracking
-  lib/model.ts         # pure formulas
-  lib/model.test.ts    # Vitest tests for the formulas
+  lib/*.ts             # pure domain logic (formulas, tokenizer, sampling, batching; no React, no DOM, no Tailwind/CSS styling)
+  lib/*.test.ts        # Vitest tests for domain logic
 ```
 
 ## Commands
@@ -109,9 +131,9 @@ npm run build
 ```
 
 Component tests (`*.test.tsx`) run under `npm test` must assert compound
-controls by accessible role (e.g., querying `radiogroup` by name) and must
-assert repeated action controls by their disambiguated accessible name (e.g.,
-`expect(screen.getByRole("button", { name: /how is this calculated.*weight memory/i })).toBeInTheDocument()`).
+controls using role-based accessible queries (e.g., querying `radiogroup` by
+name), repeated controls by disambiguated name, and dynamic calculation verdicts
+using `getByRole("status")` or `getByRole("alert")`.
 
 ## Style
 

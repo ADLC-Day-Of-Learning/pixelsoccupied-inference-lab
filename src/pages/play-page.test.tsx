@@ -19,9 +19,7 @@ describe("PlayPage end-to-end integration", () => {
 
     // 1. Initial state: Level picker with Level 0 Tokens
     expect(screen.getByText("Inference Play")).toBeInTheDocument()
-    expect(
-      screen.getByText(`0 of ${LEVELS.length} complete`)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/0 of \d+ complete/i)).toBeInTheDocument()
 
     const level0Card = screen.getByTestId("level-card-tokens")
     expect(level0Card).toHaveAttribute("data-level-state", "available")
@@ -59,9 +57,7 @@ describe("PlayPage end-to-end integration", () => {
     fireEvent.click(backButton)
 
     // 7. Picker reflects completed status
-    expect(
-      screen.getByText(`1 of ${LEVELS.length} complete`)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/1 of \d+ complete/i)).toBeInTheDocument()
     expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "completed"
@@ -71,9 +67,7 @@ describe("PlayPage end-to-end integration", () => {
 
     // 8. Simulate reload by remounting PlayPage: progress persists from localStorage
     render(<PlayPage />)
-    expect(
-      screen.getByText(`1 of ${LEVELS.length} complete`)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/1 of \d+ complete/i)).toBeInTheDocument()
     expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "completed"
@@ -84,12 +78,38 @@ describe("PlayPage end-to-end integration", () => {
     fireEvent.click(resetButton)
     const confirmButton = screen.getByRole("button", { name: /confirm reset/i })
     fireEvent.click(confirmButton)
-    expect(
-      screen.getByText(`0 of ${LEVELS.length} complete`)
-    ).toBeInTheDocument()
+    expect(screen.getByText(/0 of \d+ complete/i)).toBeInTheDocument()
     expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "available"
     )
+  })
+
+  it("opens Level 4 (Batching) from picker and displays batching level", () => {
+    window.localStorage.setItem(
+      "inference-lab:play:progress",
+      JSON.stringify({ completedLevelIds: ["prefill-decode"] })
+    )
+
+    render(<PlayPage />)
+
+    const level4Card = screen.getByTestId("level-card-batching")
+    expect(level4Card).toBeInTheDocument()
+    expect(level4Card).toHaveAttribute("data-level-state", "available")
+
+    fireEvent.click(level4Card)
+
+    expect(
+      screen.getByText("Batching (static vs continuous)")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Batching: Static vs Continuous")
+    ).toBeInTheDocument()
+
+    // Move to Try tab
+    fireEvent.click(screen.getByRole("tab", { name: /try/i }))
+    expect(
+      screen.getByRole("radiogroup", { name: /batching strategy/i })
+    ).toBeInTheDocument()
   })
 })

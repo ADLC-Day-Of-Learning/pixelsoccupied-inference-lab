@@ -88,6 +88,37 @@ describe("progress and level unlocking", () => {
     expect(isLevelUnlocked(updated, 2, mockLevels)).toBe(true)
   })
 
+  it("unlocks non-consecutive levels when the preceding registered level in the registry is completed", () => {
+    const mockLevel5: LevelDefinition = {
+      id: "quantization-and-model-choice",
+      number: 5,
+      title: "Quantization and model choice",
+      concept: "Quantization concept",
+      Component: () => null,
+    }
+    const levelsWithGaps = [mockLevel0, mockLevel1, mockLevel5]
+
+    const initialState = getInitialProgressState()
+    expect(isLevelUnlocked(initialState, mockLevel5, levelsWithGaps)).toBe(false)
+
+    // Complete Level 1 (the preceding registered level in registry)
+    const completed = markLevelCompleted(
+      initialState,
+      mockLevel1.id,
+      levelsWithGaps
+    )
+    expect(isLevelUnlocked(completed, mockLevel5, levelsWithGaps)).toBe(true)
+  })
+
+  it("unlocks non-contiguous levels using preceding registered level when intermediate levels are omitted", () => {
+    const nonContiguousLevels = [mockLevel0, mockLevel1, mockLevel3]
+    const state = getInitialProgressState()
+    expect(isLevelUnlocked(state, mockLevel3, nonContiguousLevels)).toBe(false)
+
+    const updated = markLevelCompleted(state, mockLevel1.id, nonContiguousLevels)
+    expect(isLevelUnlocked(updated, mockLevel3, nonContiguousLevels)).toBe(true)
+  })
+
   it("does not duplicate completed level IDs when marked multiple times", () => {
     const initialState = getInitialProgressState()
     const once = markLevelCompleted(initialState, "how-it-works", mockLevels)
@@ -155,5 +186,45 @@ describe("progress and level unlocking", () => {
     window.localStorage.setItem(PROGRESS_STORAGE_KEY, "invalid json {")
     const loaded = loadProgress()
     expect(loaded).toEqual({ completedLevelIds: [] })
+  })
+
+  it("unlocks level when immediately preceding level is not present in registry", () => {
+    const mockLevel4: LevelDefinition = {
+      id: "batching",
+      number: 4,
+      title: "Batching",
+      concept: "Batching concept",
+      Component: () => null,
+    }
+    const sparseLevels = [mockLevel0, mockLevel4]
+    const state = getInitialProgressState()
+
+    // Level 4 is unlocked because highest preceding registered level is level 0
+    expect(isLevelUnlocked(state, mockLevel4, sparseLevels)).toBe(true)
+  })
+
+  it("keeps level locked when level 1 is present in registry until level 1 is completed", () => {
+    const mockLevel4: LevelDefinition = {
+      id: "batching",
+      number: 4,
+      title: "Batching",
+      concept: "Batching concept",
+      Component: () => null,
+    }
+    const sparseLevelsWithLevel1 = [mockLevel0, mockLevel1, mockLevel4]
+    const state = getInitialProgressState()
+
+    // Level 4 should remain locked because Level 1 is present and not yet completed
+    expect(isLevelUnlocked(state, mockLevel4, sparseLevelsWithLevel1)).toBe(false)
+
+    // Completing Level 1 unlocks Level 4
+    const completedState = markLevelCompleted(
+      state,
+      mockLevel1.id,
+      sparseLevelsWithLevel1
+    )
+    expect(
+      isLevelUnlocked(completedState, mockLevel4, sparseLevelsWithLevel1)
+    ).toBe(true)
   })
 })

@@ -33,7 +33,7 @@ describe("App Navigation and Default View", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "Inference Play"
     )
-    expect(screen.getByText(/0 of \d+ complete/)).toBeInTheDocument()
+    expect(screen.getByText(/0 of \d+ complete/i)).toBeInTheDocument()
 
     // 2. Sidebar contains Play and Lab
     const labButton = screen.getByRole("button", { name: /^lab$/i })

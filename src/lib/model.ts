@@ -787,3 +787,256 @@ export function estimateDecodeTokensPerSecond(
     aggregateTokensPerSecond,
   }
 }
+
+export interface RequestLatencyParams {
+  parameters: number
+  promptTokens: number
+  outputTokens: number
+  peakTflops: number
+  memoryBandwidthTb: number
+  layers?: number
+  kvHeads?: number
+  headDim?: number
+  weightPrecision?: WeightPrecision
+  kvPrecision?: KvPrecision
+  gpuCount?: number
+  computeUtilization?: number
+  bandwidthUtilization?: number
+}
+
+export interface RequestLatencyResult {
+  prefillSeconds: number
+  prefillMs: number
+  decodeStepSeconds: number
+  decodeStepMs: number
+  totalDecodeSeconds: number
+  totalDecodeMs: number
+  totalSeconds: number
+  totalMs: number
+  decodeTokensPerSecond: number
+  prefillPercentage: number
+  decodePercentage: number
+  isDecodeDominant: boolean
+}
+
+/**
+ * Calculates end-to-end request latency breakdown including TTFT (prefill time),
+ * inter-token decode step latency, total decode time, and phase proportions.
+ *
+ * Formulas:
+ *   TTFT = prefill time (compute-bound)
+ *   Decode step time = latency per generated token (memory-bandwidth-bound)
+ *   Total decode time = output_tokens × decode_step_time
+ *   Total request time = TTFT + total_decode_time
+ *
+ * @param params Request latency parameters
+ * @returns RequestLatencyResult with prefill and decode metrics
+ */
+export function estimateRequestLatency(
+  params: RequestLatencyParams
+): RequestLatencyResult {
+  const parameters = Math.max(0, params.parameters)
+  const promptTokens = Math.max(0, params.promptTokens)
+  const outputTokens = Math.max(0, params.outputTokens)
+  const weightPrecision = params.weightPrecision ?? "FP16"
+  const kvPrecision = params.kvPrecision ?? "FP16"
+
+  const prefillSeconds = estimatePrefillTime({
+    parameters,
+    promptTokens,
+    peakTflops: params.peakTflops,
+    gpuCount: params.gpuCount,
+    computeUtilization: params.computeUtilization,
+  })
+
+  const weightBytes = calculateWeightMemory(parameters, weightPrecision)
+
+  let kvBytesPerToken = 0
+  if (params.layers && params.kvHeads && params.headDim) {
+    kvBytesPerToken = calculateKvCachePerToken(
+      params.layers,
+      params.kvHeads,
+      params.headDim,
+      kvPrecision
+    )
+  }
+  const kvBytesRead = promptTokens * kvBytesPerToken
+
+  const decodeStepSeconds = estimateDecodeStepTime({
+    weightBytes,
+    kvBytesRead,
+    memoryBandwidthTb: params.memoryBandwidthTb,
+    gpuCount: params.gpuCount,
+    bandwidthUtilization: params.bandwidthUtilization,
+  })
+
+  const totalDecodeSeconds = outputTokens * decodeStepSeconds
+  const totalSeconds = prefillSeconds + totalDecodeSeconds
+
+  const prefillMs = prefillSeconds * 1000
+  const decodeStepMs = decodeStepSeconds * 1000
+  const totalDecodeMs = totalDecodeSeconds * 1000
+  const totalMs = totalSeconds * 1000
+
+  const prefillPercentage =
+    totalSeconds > 0 ? (prefillSeconds / totalSeconds) * 100 : 0
+  const decodePercentage =
+    totalSeconds > 0 ? (totalDecodeSeconds / totalSeconds) * 100 : 0
+  const isDecodeDominant = totalDecodeSeconds > prefillSeconds
+
+  const { perRequestTokensPerSecond } =
+    estimateDecodeTokensPerSecond(decodeStepSeconds)
+
+  return {
+    prefillSeconds,
+    prefillMs,
+    decodeStepSeconds,
+    decodeStepMs,
+    totalDecodeSeconds,
+    totalDecodeMs,
+    totalSeconds,
+    totalMs,
+    decodeTokensPerSecond: perRequestTokensPerSecond,
+    prefillPercentage,
+    decodePercentage,
+    isDecodeDominant,
+  }
+}
+
+/**
+ * Illustrative toy benchmark quality score table for model architectures and weight precisions.
+ * Higher is better (normalized to 100 for 70B FP16).
+ *
+ * Clearly labeled as illustrative / toy scores for educational trade-off intuition.
+ */
+export const TOY_QUALITY_SCORES: Record<string, Record<WeightPrecision, number>> = {
+  "llama-3-70b": {
+    FP16: 100,
+    FP8: 99,
+    INT4: 95,
+  },
+  "llama-3-8b": {
+    FP16: 80,
+    FP8: 79,
+    INT4: 74,
+  },
+}
+
+/**
+ * Returns the toy quality score for a given model preset and weight precision.
+ */
+export function getToyQualityScore(
+  modelId: string,
+  precision: WeightPrecision
+): number {
+  return TOY_QUALITY_SCORES[modelId]?.[precision] ?? 0
+}
+
+/**
+ * Fixed cloud rental rates ($/GPU-hour) per GPU type based on standard on-demand cloud pricing.
+ */
+export const GPU_HOURLY_COSTS: Record<string, number> = {
+  // NVIDIA A100 80GB SXM: typical cloud market rate ~$2.20/hr
+  "a100-80gb": 2.2,
+  // NVIDIA H100 80GB SXM: typical cloud market rate ~$3.20/hr
+  "h100-80gb": 3.2,
+  // NVIDIA L40S 48GB: typical cloud market rate ~$1.10/hr
+  "l40s-48gb": 1.1,
+}
+
+/**
+ * Returns fixed hourly rental rate ($/hour) for a given GPU preset ID.
+ */
+export function getGpuHourlyCost(gpuId: string): number {
+  return GPU_HOURLY_COSTS[gpuId] ?? 0
+}
+
+export interface CostPer1MTokensParams {
+  costPerHourPerGpu: number
+  gpuCount: number
+  tokensPerSecond: number
+}
+
+/**
+ * Calculates serving cost per 1M generated tokens ($/1M tokens).
+ *
+ * Formula:
+ *   Cost per 1M tokens = ($/hour × GPUs) ÷ (tokens per hour ÷ 1e6)
+ *   where tokens per hour = tokens per second × 3600 seconds
+ *
+ * @param params Object containing hourly GPU rate, GPU count, and decode throughput
+ * @returns Cost in dollars per 1 million tokens (0 if throughput or cost is non-positive)
+ */
+export function calculateCostPer1MTokens(params: CostPer1MTokensParams): number
+export function calculateCostPer1MTokens(
+  costPerHourPerGpu: number,
+  gpuCount: number,
+  tokensPerSecond: number
+): number
+export function calculateCostPer1MTokens(
+  arg1: number | CostPer1MTokensParams,
+  arg2?: number,
+  arg3?: number
+): number {
+  const costPerHourPerGpu =
+    typeof arg1 === "object" ? arg1.costPerHourPerGpu : arg1
+  const gpuCount = typeof arg1 === "object" ? arg1.gpuCount : (arg2 ?? 1)
+  const tokensPerSecond =
+    typeof arg1 === "object" ? arg1.tokensPerSecond : (arg3 ?? 0)
+
+  if (tokensPerSecond <= 0 || costPerHourPerGpu <= 0 || gpuCount <= 0) {
+    return 0
+  }
+
+  const tokensPerHour = tokensPerSecond * 3600
+  const totalCostPerHour = costPerHourPerGpu * gpuCount
+  const millionsOfTokensPerHour = tokensPerHour / 1e6
+
+  return totalCostPerHour / millionsOfTokensPerHour
+}
+
+export interface Level5Challenge1Params {
+  qualityScore: number
+  costPer1MTokens: number
+  maxCostThreshold?: number
+  minQualityThreshold?: number
+  fits?: boolean
+}
+
+/**
+ * Evaluates Challenge 1: "Quality >= 95 and cost <= $X per 1M tokens" (with X = 15.00).
+ */
+export function evaluateLevel5Challenge1(params: Level5Challenge1Params): boolean {
+  const maxCost = params.maxCostThreshold ?? 15.0
+  const minQuality = params.minQualityThreshold ?? 95
+  const fits = params.fits ?? true
+  return (
+    fits &&
+    params.qualityScore >= minQuality &&
+    params.costPer1MTokens > 0 &&
+    params.costPer1MTokens <= maxCost
+  )
+}
+
+export interface Level5Challenge2Params {
+  qualityScore: number
+  tokensPerSecond: number
+  minQualityThreshold?: number
+  minThroughputThreshold?: number
+  fits?: boolean
+}
+
+/**
+ * Evaluates Challenge 2: "Fastest setup with quality >= 79" (8B FP8 on 8x H100 with ~2345 tokens/s).
+ */
+export function evaluateLevel5Challenge2(params: Level5Challenge2Params): boolean {
+  const minQuality = params.minQualityThreshold ?? 79
+  const minThroughput = params.minThroughputThreshold ?? 2300
+  const fits = params.fits ?? true
+  return (
+    fits &&
+    params.qualityScore >= minQuality &&
+    params.tokensPerSecond >= minThroughput
+  )
+}
+

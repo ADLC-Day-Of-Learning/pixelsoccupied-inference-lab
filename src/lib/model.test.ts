@@ -13,11 +13,19 @@ import {
   estimatePrefillTime,
   estimateDecodeStepTime,
   estimateDecodeTokensPerSecond,
+  estimateRequestLatency,
   GPU_PRESETS,
   BYTES_IN_GB,
   CONTEXT_LENGTH_PRESETS,
   DEFAULT_COMPUTE_UTILIZATION,
   DEFAULT_BANDWIDTH_UTILIZATION,
+  getToyQualityScore,
+  TOY_QUALITY_SCORES,
+  GPU_HOURLY_COSTS,
+  getGpuHourlyCost,
+  calculateCostPer1MTokens,
+  evaluateLevel5Challenge1,
+  evaluateLevel5Challenge2,
 } from "./model"
 
 describe("model formulas", () => {
@@ -181,6 +189,32 @@ describe("model formulas", () => {
         "Does not fit: weights need 16.4 GB, but only 16 GB is available"
       )
     })
+
+    it("evaluates 80 GB weights on 80 GB GPU with 8 GB overhead as fits: false with 8 GB shortfall", () => {
+      const result = evaluateMemoryFit({
+        parameters: 40e9, // 40B * 2 bytes (FP16) = 80 GB
+        precision: "FP16",
+        gpuMemoryBytes: 80e9,
+        gpuCount: 1,
+        overheadBytes: 8e9,
+      })
+      expect(result.fits).toBe(false)
+      expect(result.shortfallBytes).toBe(8e9)
+      expect(result.shortfallGb).toBe(8)
+    })
+
+    it("evaluates 80.1 GB weights on 80 GB GPU with 8 GB overhead as fits: false with 8.1 GB shortfall continuously", () => {
+      const result = evaluateMemoryFit({
+        parameters: 40.05e9, // 40.05B * 2 bytes (FP16) = 80.1 GB
+        precision: "FP16",
+        gpuMemoryBytes: 80e9,
+        gpuCount: 1,
+        overheadBytes: 8e9,
+      })
+      expect(result.fits).toBe(false)
+      expect(result.shortfallBytes).toBeCloseTo(8.1e9, 5)
+      expect(result.shortfallGb).toBeCloseTo(8.1, 5)
+    })
   })
 
   describe("calculateMemoryShortfall", () => {
@@ -192,6 +226,14 @@ describe("model formulas", () => {
     it("returns shortfall when weights exceed available memory after overhead", () => {
       // 75 GB weights on 80 GB GPU with 8 GB overhead (72 GB available) -> 3 GB shortfall
       expect(calculateMemoryShortfall(75e9, 80e9, 8e9)).toBe(3e9)
+    })
+
+    it("evaluates 80 GB weights on 80 GB GPU with 8 GB overhead to 8 GB shortfall", () => {
+      expect(calculateMemoryShortfall(80e9, 80e9, 8e9)).toBe(8e9)
+    })
+
+    it("evaluates 80.1 GB weights on 80 GB GPU with 8 GB overhead to 8.1 GB shortfall continuously", () => {
+      expect(calculateMemoryShortfall(80.1e9, 80e9, 8e9)).toBeCloseTo(8.1e9, 5)
     })
 
     it("returns 0 when weights fit within available memory", () => {
@@ -669,6 +711,276 @@ describe("model formulas", () => {
       const throughput = estimateDecodeTokensPerSecond({ stepTimeSeconds: 0.01, batchSize: 0 })
       expect(throughput.perRequestTokensPerSecond).toBe(0)
       expect(throughput.aggregateTokensPerSecond).toBe(0)
+    })
+  })
+
+  describe("estimateRequestLatency", () => {
+    it("calculates end-to-end request latency breakdown correctly for Llama-3-8B on H100", () => {
+      // 8B on H100 with 4,000 prompt tokens and 100 output tokens
+      const result = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 4000,
+        outputTokens: 100,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+        layers: 32,
+        kvHeads: 8,
+        headDim: 128,
+        weightPrecision: "FP16",
+        kvPrecision: "FP16",
+      })
+
+      // Prefill arithmetic:
+      //   2 * 8e9 * 4000 = 64e12 FLOPs
+      //   989e12 * 0.5 = 494.5e12 effective FLOPs
+      //   prefillSeconds = 64 / 494.5 ≈ 0.12942s (~129.4 ms)
+      expect(result.prefillSeconds).toBeCloseTo(0.1294, 3)
+      expect(result.prefillMs).toBeCloseTo(129.4, 0)
+      expect(result.prefillMs).toBeLessThan(200)
+
+      // Decode step time arithmetic:
+      //   weights = 8e9 * 2 = 16 GB
+      //   KV read = 4000 * 131,072 = 524,288,000 bytes (~0.524 GB)
+      //   total bytes read per step = 16.524288 GB
+      //   effective bandwidth = 3.35 TB/s * 0.7 = 2.345 TB/s
+      //   step time = 16.524288e9 / 2.345e12 ≈ 0.0070466s (~7.05 ms)
+      expect(result.decodeStepMs).toBeCloseTo(7.05, 1)
+
+      // Total decode for 100 tokens:
+      //   100 * ~7.05 ms ≈ 705 ms (~0.705s)
+      expect(result.totalDecodeMs).toBeCloseTo(705, 0)
+
+      // Total latency: ~129.4 ms + ~705 ms ≈ 834 ms
+      expect(result.totalMs).toBeCloseTo(result.prefillMs + result.totalDecodeMs, 1)
+
+      // Decode dominates total time (705 ms > 129 ms)
+      expect(result.isDecodeDominant).toBe(true)
+      expect(result.decodePercentage).toBeGreaterThan(result.prefillPercentage)
+    })
+
+    it("identifies prefill-dominant setup when prompt is long and output is short", () => {
+      // 8B on A100 with 4,000 prompt tokens and 10 output tokens
+      const result = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 4000,
+        outputTokens: 10,
+        peakTflops: 312,
+        memoryBandwidthTb: 2.0,
+      })
+
+      // Prefill: 64e12 / (312e12 * 0.5) = 64 / 156 ≈ 0.4102s (410 ms)
+      expect(result.prefillMs).toBeCloseTo(410.2, 0)
+      // Decode: 10 * ~11.4 ms ≈ 114 ms
+      expect(result.totalDecodeMs).toBeLessThan(result.prefillMs)
+      expect(result.isDecodeDominant).toBe(false)
+      expect(result.prefillPercentage).toBeGreaterThan(50)
+    })
+
+    it("identifies decode-dominant setup when prompt is short and output is long", () => {
+      // Short chat: 200 prompt tokens, 500 output tokens
+      const result = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 200,
+        outputTokens: 500,
+        peakTflops: 312,
+        memoryBandwidthTb: 2.0,
+      })
+
+      // Prefill: ~20.5 ms
+      expect(result.prefillMs).toBeCloseTo(20.5, 0)
+      // Decode: 500 * ~11.4 ms ≈ 5700 ms
+      expect(result.totalDecodeMs).toBeGreaterThan(5000)
+      expect(result.isDecodeDominant).toBe(true)
+      expect(result.decodePercentage).toBeGreaterThan(90)
+    })
+
+    it("handles zero or non-positive token counts safely without NaN", () => {
+      const zeroPrompt = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 0,
+        outputTokens: 100,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+      })
+      expect(zeroPrompt.prefillSeconds).toBe(0)
+      expect(zeroPrompt.prefillMs).toBe(0)
+      expect(zeroPrompt.isDecodeDominant).toBe(true)
+
+      const zeroOutput = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 1000,
+        outputTokens: 0,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+      })
+      expect(zeroOutput.totalDecodeSeconds).toBe(0)
+      expect(zeroOutput.totalDecodeMs).toBe(0)
+      expect(zeroOutput.isDecodeDominant).toBe(false)
+
+      const zeroBoth = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 0,
+        outputTokens: 0,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+      })
+      expect(zeroBoth.totalSeconds).toBe(0)
+      expect(zeroBoth.prefillPercentage).toBe(0)
+      expect(zeroBoth.decodePercentage).toBe(0)
+      expect(zeroBoth.isDecodeDominant).toBe(false)
+    })
+
+    it("handles zero hardware capacity safely", () => {
+      const zeroHw = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 1000,
+        outputTokens: 100,
+        peakTflops: 0,
+        memoryBandwidthTb: 0,
+      })
+      expect(zeroHw.prefillSeconds).toBe(0)
+      expect(zeroHw.decodeStepSeconds).toBe(0)
+      expect(zeroHw.totalSeconds).toBe(0)
+      expect(zeroHw.decodeTokensPerSecond).toBe(0)
+    })
+  })
+
+  describe("toy quality scores and GPU rental costs", () => {
+    it("returns expected toy quality scores for all model and precision combinations", () => {
+      expect(getToyQualityScore("llama-3-70b", "FP16")).toBe(100)
+      expect(getToyQualityScore("llama-3-70b", "FP8")).toBe(99)
+      expect(getToyQualityScore("llama-3-70b", "INT4")).toBe(95)
+      expect(getToyQualityScore("llama-3-8b", "FP16")).toBe(80)
+      expect(getToyQualityScore("llama-3-8b", "FP8")).toBe(79)
+      expect(getToyQualityScore("llama-3-8b", "INT4")).toBe(74)
+      expect(getToyQualityScore("unknown-model", "FP16")).toBe(0)
+    })
+
+    it("verifies TOY_QUALITY_SCORES table matches documented specification", () => {
+      expect(TOY_QUALITY_SCORES["llama-3-70b"]).toEqual({
+        FP16: 100,
+        FP8: 99,
+        INT4: 95,
+      })
+      expect(TOY_QUALITY_SCORES["llama-3-8b"]).toEqual({
+        FP16: 80,
+        FP8: 79,
+        INT4: 74,
+      })
+    })
+
+    it("returns fixed hourly rates for known GPU presets and 0 for unknown", () => {
+      expect(getGpuHourlyCost("a100-80gb")).toBe(2.2)
+      expect(getGpuHourlyCost("h100-80gb")).toBe(3.2)
+      expect(getGpuHourlyCost("l40s-48gb")).toBe(1.1)
+      expect(getGpuHourlyCost("unknown-gpu")).toBe(0)
+      expect(GPU_HOURLY_COSTS["a100-80gb"]).toBe(2.2)
+      expect(GPU_HOURLY_COSTS["h100-80gb"]).toBe(3.2)
+      expect(GPU_HOURLY_COSTS["l40s-48gb"]).toBe(1.1)
+    })
+  })
+
+  describe("calculateCostPer1MTokens", () => {
+    it("calculates cost per 1M tokens from hourly GPU rate and throughput", () => {
+      // Formula: ($/hour * GPUs) / (tokens per hour / 1e6)
+      // 1 GPU at $2.00/hr serving 100 tokens/s -> 360,000 tokens/hr -> $2 / 0.36M = $5.56 / 1M tokens
+      const cost = calculateCostPer1MTokens({
+        costPerHourPerGpu: 2.0,
+        gpuCount: 1,
+        tokensPerSecond: 100,
+      })
+      expect(cost).toBeCloseTo(5.5555, 2)
+    })
+
+    it("scales cost with GPU count and inversely with throughput", () => {
+      // 2 GPUs at $3.20/hr each ($6.40 total/hr) serving 200 tokens/s
+      // tokensPerHour = 200 * 3600 = 720,000 tokens/hr = 0.72M tokens/hr
+      // Cost = 6.40 / 0.72 ≈ $8.8888 / 1M tokens
+      const cost = calculateCostPer1MTokens(3.2, 2, 200)
+      expect(cost).toBeCloseTo(8.8888, 3)
+    })
+
+    it("handles zero or non-positive inputs safely", () => {
+      expect(calculateCostPer1MTokens({ costPerHourPerGpu: 0, gpuCount: 1, tokensPerSecond: 100 })).toBe(0)
+      expect(calculateCostPer1MTokens({ costPerHourPerGpu: 3.2, gpuCount: 0, tokensPerSecond: 100 })).toBe(0)
+      expect(calculateCostPer1MTokens({ costPerHourPerGpu: 3.2, gpuCount: 1, tokensPerSecond: 0 })).toBe(0)
+      expect(calculateCostPer1MTokens(-2.0, 1, 100)).toBe(0)
+      expect(calculateCostPer1MTokens(2.0, -1, 100)).toBe(0)
+      expect(calculateCostPer1MTokens(2.0, 1, -100)).toBe(0)
+    })
+  })
+
+  describe("evaluateLevel5Challenge1 and evaluateLevel5Challenge2", () => {
+    it("evaluates Challenge 1: Quality >= 95 and cost <= maxCost threshold", () => {
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 95,
+          costPer1MTokens: 13.27,
+          maxCostThreshold: 15.0,
+        })
+      ).toBe(true)
+
+      // Quality < 95 fails
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 80,
+          costPer1MTokens: 10.0,
+          maxCostThreshold: 15.0,
+        })
+      ).toBe(false)
+
+      // Cost > 15 fails
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 99,
+          costPer1MTokens: 26.53,
+          maxCostThreshold: 15.0,
+        })
+      ).toBe(false)
+
+      // Does not fit fails
+      expect(
+        evaluateLevel5Challenge1({
+          qualityScore: 100,
+          costPer1MTokens: 12.0,
+          fits: false,
+        })
+      ).toBe(false)
+    })
+
+    it("evaluates Challenge 2: Fastest setup with quality >= 79", () => {
+      // 8B FP8 on 8x H100 delivers ~2345 tokens/s with quality 79
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 79,
+          tokensPerSecond: 2345,
+        })
+      ).toBe(true)
+
+      // Slower setup fails (e.g. 8B FP8 on 4x H100 ~1173 tokens/s)
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 79,
+          tokensPerSecond: 1173,
+        })
+      ).toBe(false)
+
+      // 8B INT4 is faster (~4690 tokens/s) but quality is only 74 (< 79), so it fails
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 74,
+          tokensPerSecond: 4690,
+        })
+      ).toBe(false)
+
+      // Does not fit fails
+      expect(
+        evaluateLevel5Challenge2({
+          qualityScore: 79,
+          tokensPerSecond: 2345,
+          fits: false,
+        })
+      ).toBe(false)
     })
   })
 })
