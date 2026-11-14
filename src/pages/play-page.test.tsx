@@ -23,6 +23,8 @@ describe("PlayPage end-to-end integration", () => {
 
     const level0Card = screen.getByTestId("level-card-how-it-works")
     expect(level0Card).toHaveAttribute("data-level-state", "available")
+    const level3Card = screen.getByTestId("level-card-kv-cache")
+    expect(level3Card).toHaveAttribute("data-level-state", "locked")
 
     // 2. Open Level 0
     fireEvent.click(level0Card)
@@ -47,11 +49,15 @@ describe("PlayPage end-to-end integration", () => {
     const backButton = screen.getByRole("button", { name: /back to levels/i })
     fireEvent.click(backButton)
 
-    // 7. Picker reflects completed status
+    // 7. Picker reflects completed status and unlocked next level
     expect(screen.getByText(`1 of ${LEVELS.length} complete`)).toBeInTheDocument()
     expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
       "data-level-state",
       "completed"
+    )
+    expect(screen.getByTestId("level-card-kv-cache")).toHaveAttribute(
+      "data-level-state",
+      "available"
     )
 
     unmount()
@@ -63,6 +69,10 @@ describe("PlayPage end-to-end integration", () => {
       "data-level-state",
       "completed"
     )
+    expect(screen.getByTestId("level-card-kv-cache")).toHaveAttribute(
+      "data-level-state",
+      "available"
+    )
 
     // 9. Reset progress action
     const resetButton = screen.getByRole("button", { name: /reset progress/i })
@@ -73,6 +83,10 @@ describe("PlayPage end-to-end integration", () => {
     expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
       "data-level-state",
       "available"
+    )
+    expect(screen.getByTestId("level-card-kv-cache")).toHaveAttribute(
+      "data-level-state",
+      "locked"
     )
   })
 })

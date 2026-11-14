@@ -120,7 +120,7 @@ export function Level3Component({ onComplete }: LevelProps) {
   // CHALLENGE SECTION STATE
   // ---------------------------------------------------------------------------
   // Goal 1: Serve 32 concurrent users at 8K context on Llama-3-8B without preemption, using 1 GPU.
-  const [goal1GpuId, setGoal1GpuId] = React.useState<string>("a100-80gb")
+  const [goal1GpuId, setGoal1GpuId] = React.useState<string>("l40s-48gb")
   const [goal1KvPrecision, setGoal1KvPrecision] =
     React.useState<KvPrecision>("FP16")
 
@@ -156,7 +156,7 @@ export function Level3Component({ onComplete }: LevelProps) {
   const [goal2GpuId, setGoal2GpuId] = React.useState<string>("a100-80gb")
   const [goal2GpuCount, setGoal2GpuCount] = React.useState<number>(2)
   const [goal2KvPrecision, setGoal2KvPrecision] =
-    React.useState<KvPrecision>("FP8")
+    React.useState<KvPrecision>("FP16")
 
   const goal2Model = MODEL_PRESETS[1] // Llama-3-70B
   const goal2Gpu =
@@ -239,6 +239,7 @@ export function Level3Component({ onComplete }: LevelProps) {
             </CardHeader>
             <CardContent className="space-y-4 text-xs">
               <div
+                role="figure"
                 className="w-full rounded-md border bg-muted/30 p-4 space-y-4"
                 aria-label="Diagram showing GPU memory partitioned into model weights, runtime overhead, and KV cache slices"
               >
@@ -682,7 +683,10 @@ export function Level3Component({ onComplete }: LevelProps) {
 
               {/* Preemption Alert or Serving Status */}
               {simulation.isPreempted ? (
-                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 space-y-2 text-destructive">
+                <div
+                  role="alert"
+                  className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 space-y-2 text-destructive"
+                >
                   <div className="flex items-center gap-2 font-semibold text-sm">
                     <AlertTriangle className="size-4 shrink-0" />
                     <span>
@@ -705,7 +709,11 @@ export function Level3Component({ onComplete }: LevelProps) {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300"
+                >
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                     <span>
@@ -914,7 +922,7 @@ export function Level3Component({ onComplete }: LevelProps) {
                   </Label>
                   <ToggleGroup
                     id="goal1-kv"
-                    aria-labelledby="goal1-kv-label"
+                    aria-label="KV Cache Precision (Challenge 1)"
                     type="single"
                     value={goal1KvPrecision}
                     onValueChange={(val: string) => {
@@ -1063,7 +1071,7 @@ export function Level3Component({ onComplete }: LevelProps) {
                   </Label>
                   <ToggleGroup
                     id="goal2-kv"
-                    aria-labelledby="goal2-kv-label"
+                    aria-label="KV Cache Precision (Challenge 2)"
                     type="single"
                     value={goal2KvPrecision}
                     onValueChange={(val: string) => {

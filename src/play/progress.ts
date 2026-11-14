@@ -169,8 +169,20 @@ export function isLevelUnlocked(
     return true
   }
 
-  // Level N unlocks when level N - 1 is completed
+  // Level N unlocks when the previous registered level is completed.
+  // In sparse registries (e.g. [level0, level3]), level 3 unlocks when level 0 is completed.
   if (levelNum !== undefined && levelNum > 1) {
+    if (levels.length > 0) {
+      const priorLevels = levels
+        .filter((l) => l.number < levelNum)
+        .sort((a, b) => b.number - a.number)
+      if (priorLevels.length > 0) {
+        const prevLevel = priorLevels[0]
+        return isLevelCompleted(state, prevLevel.id, levels)
+      }
+      return true
+    }
+
     const prevNum = levelNum - 1
     const prevLevel = levels.find((l) => l.number === prevNum)
     if (prevLevel) {

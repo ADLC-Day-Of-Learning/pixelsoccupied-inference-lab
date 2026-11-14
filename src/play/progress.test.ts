@@ -82,6 +82,22 @@ describe("progress and level unlocking", () => {
     expect(isLevelUnlocked(updated2, 3, mockLevels)).toBe(true)
   })
 
+  it("unlocks Level 3 upon completing Level 0 in sparse registries where intermediate levels are not present", () => {
+    const sparseLevels: LevelDefinition[] = [mockLevel0, mockLevel3]
+    const state = getInitialProgressState()
+
+    // Level 0 is available, Level 3 is initially locked
+    expect(isLevelUnlocked(state, mockLevel0, sparseLevels)).toBe(true)
+    expect(isLevelUnlocked(state, mockLevel3, sparseLevels)).toBe(false)
+    expect(getLevelState(state, mockLevel3, sparseLevels)).toBe("locked")
+
+    // Completing Level 0 unlocks Level 3
+    const updated = markLevelCompleted(state, mockLevel0.id, sparseLevels)
+    expect(isLevelCompleted(updated, mockLevel0.id, sparseLevels)).toBe(true)
+    expect(isLevelUnlocked(updated, mockLevel3, sparseLevels)).toBe(true)
+    expect(getLevelState(updated, mockLevel3, sparseLevels)).toBe("available")
+  })
+
   it("supports marking completed and checking unlock with numeric level indicators", () => {
     const initialState = getInitialProgressState()
     const updated = markLevelCompleted(initialState, 1, mockLevels)

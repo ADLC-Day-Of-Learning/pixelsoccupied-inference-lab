@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest"
-import { render, screen, fireEvent, cleanup } from "@testing-library/react"
+import { render, screen, fireEvent, cleanup, within } from "@testing-library/react"
 import { describe, it, expect, vi, afterEach } from "vitest"
 import { Level3Component } from "./level-3"
 import { level3 } from "./index"
@@ -112,48 +112,72 @@ describe("Level 3: KV Cache Memory", () => {
   it("validates Challenge goals and invokes onComplete when both goals are met", () => {
     const { handleComplete } = renderLevel3()
 
+    // On initial mount (on Learn tab), onComplete must not be called
+    expect(handleComplete).not.toHaveBeenCalled()
+
     fireEvent.click(screen.getByRole("tab", { name: /challenge/i }))
 
     expect(
       screen.getByRole("heading", { name: "Level 3 Challenges", level: 3 })
     ).toBeInTheDocument()
 
-    // Goal 1 controls and initial state:
-    // Goal 1 default: 1x A100 80GB, FP16 -> Llama-3-8B 32 users @ 8K fits (Goal 1 Passed)
+    // Goal 1 controls and initial failing state (L40S 48GB with FP16):
+    const goal1GpuGroup = screen.getByRole("radiogroup", {
+      name: /select gpu model \(1 gpu\)/i,
+    })
+    expect(goal1GpuGroup).toBeInTheDocument()
+    const goal1KvGroup = screen.getByRole("radiogroup", {
+      name: /kv cache precision \(challenge 1\)/i,
+    })
+    expect(goal1KvGroup).toBeInTheDocument()
     expect(
-      screen.getByRole("radiogroup", {
-        name: /select gpu model \(1 gpu\)/i,
-      })
+      screen.getByText(/Failed: 5 requests preempted/i)
     ).toBeInTheDocument()
-    expect(screen.getByText(/Goal 1 Passed ✓/i)).toBeInTheDocument()
 
-    // Goal 2 default: 2x A100 80GB with FP8 KV cache -> Llama-3-70B 16 users @ 4K fits with 2 GPUs (Goal 2 Passed)
+    // Goal 2 controls and initial failing state (2x A100 80GB with FP16):
     expect(
       screen.getByRole("radiogroup", { name: /gpu count/i })
     ).toBeInTheDocument()
+    const goal2KvGroup = screen.getByRole("radiogroup", {
+      name: /kv cache precision \(challenge 2\)/i,
+    })
+    expect(goal2KvGroup).toBeInTheDocument()
+    expect(
+      screen.getByText(/Failed: 8 requests preempted/i)
+    ).toBeInTheDocument()
+
+    // Because goals start in an unsolved state, onComplete should NOT have been called
+    expect(handleComplete).not.toHaveBeenCalled()
+
+    // Step 1: Solve Goal 1 by selecting A100 (80GB)
+    const a100Btn = within(goal1GpuGroup).getByRole("radio", {
+      name: /A100 \(80GB\)/i,
+    })
+    fireEvent.click(a100Btn)
+    expect(screen.getByText(/Goal 1 Passed ✓/i)).toBeInTheDocument()
+
+    // Goal 2 is still incomplete, so onComplete should still not be called
+    expect(handleComplete).not.toHaveBeenCalled()
+
+    // Step 2: Solve Goal 2 by changing Goal 2 KV Cache Precision to FP8
+    const fp8Btn = within(goal2KvGroup).getByRole("radio", { name: /FP8/i })
+    fireEvent.click(fp8Btn)
+
     expect(screen.getByText(/Goal 2 Passed ✓/i)).toBeInTheDocument()
 
-    // Because both goals are initially satisfied by their default challenge settings,
-    // onComplete should have been called
-    expect(handleComplete).toHaveBeenCalled()
+    // Both goals are now solved -> onComplete is called
+    expect(handleComplete).toHaveBeenCalledTimes(1)
 
-    // Now test changing Goal 2 to FP16 KV cache to verify fail state
-    const goal2KvGroup = screen.getAllByRole("radiogroup", {
-      name: /kv cache precision/i,
-    })[1]
-    expect(goal2KvGroup).toBeInTheDocument()
-    const fp16Btn = screen.getAllByRole("radio", { name: /FP16/i })[1]
+    // Verify Goal 2 fails again when switched back to FP16 KV cache
+    const fp16Btn = within(goal2KvGroup).getByRole("radio", { name: /FP16/i })
     fireEvent.click(fp16Btn)
 
-    // Incomplete badge appears because FP16 KV cache preempts on 2 GPUs
     expect(
       screen.getByText(/Failed: 8 requests preempted/i)
     ).toBeInTheDocument()
 
     // Switch back to FP8 KV cache -> passes again
-    const fp8Btn = screen.getAllByRole("radio", { name: /FP8/i })[1]
     fireEvent.click(fp8Btn)
-
     expect(screen.getByText(/Goal 2 Passed ✓/i)).toBeInTheDocument()
   })
 

@@ -16,7 +16,9 @@ export function PlayPage() {
 
   // If a level is selected, find whether a next level exists and is unlocked
   const nextLevel = selectedLevel
-    ? LEVELS.find((l) => l.number === selectedLevel.number + 1) ?? null
+    ? LEVELS.filter((l) => l.number > selectedLevel.number).sort(
+        (a, b) => a.number - b.number
+      )[0] ?? null
     : null
 
   const canNavigateToNext =
