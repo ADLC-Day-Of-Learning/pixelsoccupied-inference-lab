@@ -906,3 +906,119 @@ export function estimateDecodeTokensPerSecond(
     aggregateTokensPerSecond,
   }
 }
+
+export interface RequestLatencyParams {
+  parameters: number
+  promptTokens: number
+  outputTokens: number
+  peakTflops: number
+  memoryBandwidthTb: number
+  layers?: number
+  kvHeads?: number
+  headDim?: number
+  weightPrecision?: WeightPrecision
+  kvPrecision?: KvPrecision
+  gpuCount?: number
+  computeUtilization?: number
+  bandwidthUtilization?: number
+}
+
+export interface RequestLatencyResult {
+  prefillSeconds: number
+  prefillMs: number
+  decodeStepSeconds: number
+  decodeStepMs: number
+  totalDecodeSeconds: number
+  totalDecodeMs: number
+  totalSeconds: number
+  totalMs: number
+  decodeTokensPerSecond: number
+  prefillPercentage: number
+  decodePercentage: number
+  isDecodeDominant: boolean
+}
+
+/**
+ * Calculates end-to-end request latency breakdown including TTFT (prefill time),
+ * inter-token decode step latency, total decode time, and phase proportions.
+ *
+ * Formulas:
+ *   TTFT = prefill time (compute-bound)
+ *   Decode step time = latency per generated token (memory-bandwidth-bound)
+ *   Total decode time = output_tokens × decode_step_time
+ *   Total request time = TTFT + total_decode_time
+ *
+ * @param params Request latency parameters
+ * @returns RequestLatencyResult with prefill and decode metrics
+ */
+export function estimateRequestLatency(
+  params: RequestLatencyParams
+): RequestLatencyResult {
+  const parameters = Math.max(0, params.parameters)
+  const promptTokens = Math.max(0, params.promptTokens)
+  const outputTokens = Math.max(0, params.outputTokens)
+  const weightPrecision = params.weightPrecision ?? "FP16"
+  const kvPrecision = params.kvPrecision ?? "FP16"
+
+  const prefillSeconds = estimatePrefillTime({
+    parameters,
+    promptTokens,
+    peakTflops: params.peakTflops,
+    gpuCount: params.gpuCount,
+    computeUtilization: params.computeUtilization,
+  })
+
+  const weightBytes = calculateWeightMemory(parameters, weightPrecision)
+
+  let kvBytesPerToken = 0
+  if (params.layers && params.kvHeads && params.headDim) {
+    kvBytesPerToken = calculateKvCachePerToken(
+      params.layers,
+      params.kvHeads,
+      params.headDim,
+      kvPrecision
+    )
+  }
+  const kvBytesRead = promptTokens * kvBytesPerToken
+
+  const decodeStepSeconds = estimateDecodeStepTime({
+    weightBytes,
+    kvBytesRead,
+    memoryBandwidthTb: params.memoryBandwidthTb,
+    gpuCount: params.gpuCount,
+    bandwidthUtilization: params.bandwidthUtilization,
+  })
+
+  const totalDecodeSeconds = outputTokens * decodeStepSeconds
+  const totalSeconds = prefillSeconds + totalDecodeSeconds
+
+  const prefillMs = prefillSeconds * 1000
+  const decodeStepMs = decodeStepSeconds * 1000
+  const totalDecodeMs = totalDecodeSeconds * 1000
+  const totalMs = totalSeconds * 1000
+
+  const prefillPercentage =
+    totalSeconds > 0 ? (prefillSeconds / totalSeconds) * 100 : 0
+  const decodePercentage =
+    totalSeconds > 0 ? (totalDecodeSeconds / totalSeconds) * 100 : 0
+  const isDecodeDominant = totalDecodeSeconds > prefillSeconds
+
+  const { perRequestTokensPerSecond } =
+    estimateDecodeTokensPerSecond(decodeStepSeconds)
+
+  return {
+    prefillSeconds,
+    prefillMs,
+    decodeStepSeconds,
+    decodeStepMs,
+    totalDecodeSeconds,
+    totalDecodeMs,
+    totalSeconds,
+    totalMs,
+    decodeTokensPerSecond: perRequestTokensPerSecond,
+    prefillPercentage,
+    decodePercentage,
+    isDecodeDominant,
+  }
+}
+

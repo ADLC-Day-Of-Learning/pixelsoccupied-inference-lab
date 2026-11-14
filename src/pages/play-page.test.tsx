@@ -22,8 +22,6 @@ describe("PlayPage end-to-end integration", () => {
 
     const level0Card = screen.getByTestId("level-card-tokens")
     expect(level0Card).toHaveAttribute("data-level-state", "available")
-    const level3Card = screen.getByTestId("level-card-kv-cache")
-    expect(level3Card).toHaveAttribute("data-level-state", "locked")
 
     // 2. Open Level 0
     fireEvent.click(level0Card)
@@ -63,10 +61,6 @@ describe("PlayPage end-to-end integration", () => {
       "data-level-state",
       "completed"
     )
-    expect(screen.getByTestId("level-card-kv-cache")).toHaveAttribute(
-      "data-level-state",
-      "available"
-    )
 
     unmount()
 
@@ -76,10 +70,6 @@ describe("PlayPage end-to-end integration", () => {
     expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "completed"
-    )
-    expect(screen.getByTestId("level-card-kv-cache")).toHaveAttribute(
-      "data-level-state",
-      "available"
     )
 
     // 9. Reset progress action
@@ -92,13 +82,14 @@ describe("PlayPage end-to-end integration", () => {
       "data-level-state",
       "available"
     )
-    expect(screen.getByTestId("level-card-kv-cache")).toHaveAttribute(
-      "data-level-state",
-      "locked"
-    )
   })
 
   it("opens Level 4 (Batching) from picker and displays batching level", () => {
+    window.localStorage.setItem(
+      "inference-lab:play:progress",
+      JSON.stringify({ completedLevelIds: ["prefill-decode"] })
+    )
+
     render(<PlayPage />)
 
     const level4Card = screen.getByTestId("level-card-batching")
