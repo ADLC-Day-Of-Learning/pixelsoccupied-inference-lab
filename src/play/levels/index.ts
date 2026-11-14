@@ -1,10 +1,12 @@
 import type { LevelDefinition } from "../types"
 import { Level2Component } from "./level-2"
+import { Level3Component } from "./level-3"
 import { Level4Component } from "./level-4"
 import { TokensLevelComponent } from "./tokens"
 import { Level5Component } from "./level-5"
 
 export { Level2Component } from "./level-2"
+export { Level3Component } from "./level-3"
 export { Level4Component } from "./level-4"
 export { TokensLevelComponent } from "./tokens"
 export { Level5Component } from "./level-5"
@@ -23,6 +25,14 @@ export const level2: LevelDefinition = {
   title: "Prefill vs. Decode",
   concept: "Prefill sets TTFT (compute-bound); decode sets inter-token latency (bandwidth-bound).",
   Component: Level2Component,
+}
+
+export const level3: LevelDefinition = {
+  id: "kv-cache",
+  number: 3,
+  title: "KV Cache Memory",
+  concept: "Every token in flight keeps keys and values in GPU memory, limiting concurrency and context.",
+  Component: Level3Component,
 }
 
 export const level4: LevelDefinition = {
@@ -50,6 +60,7 @@ export const level5: LevelDefinition = {
 export const LEVELS: LevelDefinition[] = [
   level0,
   level2,
+  level3,
   level4,
   level5,
 ].sort((a, b) => a.number - b.number)

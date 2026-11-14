@@ -209,6 +209,125 @@ export function calculateMaxConcurrency(
   return Math.max(0, Math.floor(kvCapacityTokens / contextLengthTokens))
 }
 
+export interface KvPreemptionParams {
+  totalGpuMemoryBytes: number
+  weightMemoryBytes: number
+  overheadBytes: number
+  kvPerTokenBytes: number
+  concurrentRequests: number
+  contextLengthTokens: number
+}
+
+export interface KvPreemptionResult {
+  freeMemoryBytes: number
+  freeMemoryGb: number
+  kvCapacityTokens: number
+  totalDemandTokens: number
+  totalDemandKvBytes: number
+  totalDemandKvGb: number
+  maxConcurrency: number
+  servedRequests: number
+  preemptedRequests: number
+  isPreempted: boolean
+  kvInUseBytes: number
+  kvInUseGb: number
+  shortfallBytes: number
+  shortfallGb: number
+}
+
+/**
+ * Calculates KV cache serving demand, served requests, and preempted requests.
+ *
+ * When total demand exceeds available KV capacity, requests beyond max concurrency
+ * are preempted and require recomputation when resumed.
+ */
+export function calculateKvPreemption(
+  params: KvPreemptionParams
+): KvPreemptionResult {
+  const {
+    totalGpuMemoryBytes,
+    weightMemoryBytes,
+    overheadBytes,
+    kvPerTokenBytes,
+    concurrentRequests,
+    contextLengthTokens,
+  } = params
+
+  const freeMemoryBytes = calculateFreeMemoryForKv(
+    totalGpuMemoryBytes,
+    weightMemoryBytes,
+    overheadBytes
+  )
+  const freeMemoryGb = freeMemoryBytes / BYTES_IN_GB
+
+  const kvCapacityTokens = calculateKvCapacity(
+    freeMemoryBytes,
+    kvPerTokenBytes
+  )
+
+  const safeConcurrency = Math.max(0, Math.floor(concurrentRequests))
+  const safeContextLength = Math.max(0, Math.floor(contextLengthTokens))
+
+  const totalDemandTokens = safeConcurrency * safeContextLength
+  const totalDemandKvBytes = totalDemandTokens * kvPerTokenBytes
+  const totalDemandKvGb = totalDemandKvBytes / BYTES_IN_GB
+
+  const maxConcurrency = calculateMaxConcurrency(
+    kvCapacityTokens,
+    safeContextLength
+  )
+
+  if (freeMemoryBytes <= 0 || kvPerTokenBytes <= 0) {
+    const preempted = safeConcurrency
+    return {
+      freeMemoryBytes: 0,
+      freeMemoryGb: 0,
+      kvCapacityTokens: 0,
+      totalDemandTokens,
+      totalDemandKvBytes,
+      totalDemandKvGb,
+      maxConcurrency: 0,
+      servedRequests: 0,
+      preemptedRequests: preempted,
+      isPreempted: preempted > 0,
+      kvInUseBytes: 0,
+      kvInUseGb: 0,
+      shortfallBytes: totalDemandKvBytes,
+      shortfallGb: totalDemandKvGb,
+    }
+  }
+
+  const servedRequests = Math.min(safeConcurrency, maxConcurrency)
+  const preemptedRequests = safeConcurrency - servedRequests
+  const isPreempted = preemptedRequests > 0
+
+  const kvInUseBytes = Math.min(
+    freeMemoryBytes,
+    servedRequests * safeContextLength * kvPerTokenBytes
+  )
+  const kvInUseGb = kvInUseBytes / BYTES_IN_GB
+
+  const shortfallBytes = Math.max(0, totalDemandKvBytes - freeMemoryBytes)
+  const shortfallGb = shortfallBytes / BYTES_IN_GB
+
+  return {
+    freeMemoryBytes,
+    freeMemoryGb,
+    kvCapacityTokens,
+    totalDemandTokens,
+    totalDemandKvBytes,
+    totalDemandKvGb,
+    maxConcurrency,
+    servedRequests,
+    preemptedRequests,
+    isPreempted,
+    kvInUseBytes,
+    kvInUseGb,
+    shortfallBytes,
+    shortfallGb,
+  }
+}
+
 export interface MemoryFitParams {
   parameters: number
   precision: WeightPrecision

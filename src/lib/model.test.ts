@@ -5,6 +5,7 @@ import {
   calculateFreeMemoryForKv,
   calculateKvCapacity,
   calculateMaxConcurrency,
+  calculateKvPreemption,
   evaluateMemoryFit,
   calculateMemoryShortfall,
   calculateMemoryBreakdown,
@@ -109,6 +110,109 @@ describe("model formulas", () => {
     it("returns 0 if context length is invalid or capacity is 0", () => {
       expect(calculateMaxConcurrency(0, 4096)).toBe(0)
       expect(calculateMaxConcurrency(30517, 0)).toBe(0)
+    })
+  })
+
+  describe("calculateKvPreemption", () => {
+    it("serves all requests with 0 preemption when demand fits within KV capacity (Llama-3-8B 32 users @ 8K on 1x 80GB)", () => {
+      // 1x 80GB = 80e9, weights = 16e9, 5% overhead = 4e9 -> 60e9 free KV
+      // 32 users * 8192 context = 262,144 tokens. FP16 KV = 131,072 bytes/token -> ~34.36 GB demand
+      const result = calculateKvPreemption({
+        totalGpuMemoryBytes: 80e9,
+        weightMemoryBytes: 16e9,
+        overheadBytes: 4e9,
+        kvPerTokenBytes: 131072,
+        concurrentRequests: 32,
+        contextLengthTokens: 8192,
+      })
+
+      expect(result.freeMemoryGb).toBe(60)
+      expect(result.totalDemandTokens).toBe(262144)
+      expect(result.servedRequests).toBe(32)
+      expect(result.preemptedRequests).toBe(0)
+      expect(result.isPreempted).toBe(false)
+      expect(result.shortfallBytes).toBe(0)
+      expect(result.shortfallGb).toBe(0)
+    })
+
+    it("preempts requests when demand exceeds capacity (Llama-3-70B FP16 KV on 2x 80GB for 16 users @ 4K)", () => {
+      // 2x 80GB = 160e9, weights = 140e9, 5% overhead = 8e9 -> 12e9 free KV
+      // FP16 KV = 327,680 bytes/token -> capacity = 36,621 tokens -> max 8 users @ 4096
+      const result = calculateKvPreemption({
+        totalGpuMemoryBytes: 160e9,
+        weightMemoryBytes: 140e9,
+        overheadBytes: 8e9,
+        kvPerTokenBytes: 327680,
+        concurrentRequests: 16,
+        contextLengthTokens: 4096,
+      })
+
+      expect(result.freeMemoryGb).toBe(12)
+      expect(result.maxConcurrency).toBe(8)
+      expect(result.servedRequests).toBe(8)
+      expect(result.preemptedRequests).toBe(8)
+      expect(result.isPreempted).toBe(true)
+      expect(result.shortfallGb).toBeGreaterThan(0)
+    })
+
+    it("eliminates preemption by using FP8 KV cache (Llama-3-70B FP8 KV on 2x 80GB for 16 users @ 4K)", () => {
+      // FP8 KV = 163,840 bytes/token -> capacity = 73,242 tokens -> max 17 users @ 4096
+      const result = calculateKvPreemption({
+        totalGpuMemoryBytes: 160e9,
+        weightMemoryBytes: 140e9,
+        overheadBytes: 8e9,
+        kvPerTokenBytes: 163840,
+        concurrentRequests: 16,
+        contextLengthTokens: 4096,
+      })
+
+      expect(result.freeMemoryGb).toBe(12)
+      expect(result.maxConcurrency).toBe(17)
+      expect(result.servedRequests).toBe(16)
+      expect(result.preemptedRequests).toBe(0)
+      expect(result.isPreempted).toBe(false)
+      expect(result.shortfallGb).toBe(0)
+    })
+
+    it("preempts all requests when model weights exceed GPU capacity", () => {
+      const result = calculateKvPreemption({
+        totalGpuMemoryBytes: 80e9,
+        weightMemoryBytes: 140e9,
+        overheadBytes: 4e9,
+        kvPerTokenBytes: 327680,
+        concurrentRequests: 10,
+        contextLengthTokens: 2048,
+      })
+
+      expect(result.freeMemoryBytes).toBe(0)
+      expect(result.servedRequests).toBe(0)
+      expect(result.preemptedRequests).toBe(10)
+      expect(result.isPreempted).toBe(true)
+    })
+
+    it("handles zero concurrency or zero context length without error", () => {
+      const zeroReq = calculateKvPreemption({
+        totalGpuMemoryBytes: 80e9,
+        weightMemoryBytes: 16e9,
+        overheadBytes: 4e9,
+        kvPerTokenBytes: 131072,
+        concurrentRequests: 0,
+        contextLengthTokens: 4096,
+      })
+      expect(zeroReq.servedRequests).toBe(0)
+      expect(zeroReq.preemptedRequests).toBe(0)
+      expect(zeroReq.isPreempted).toBe(false)
+
+      const zeroCtx = calculateKvPreemption({
+        totalGpuMemoryBytes: 80e9,
+        weightMemoryBytes: 16e9,
+        overheadBytes: 4e9,
+        kvPerTokenBytes: 131072,
+        concurrentRequests: 10,
+        contextLengthTokens: 0,
+      })
+      expect(zeroCtx.servedRequests).toBe(0)
+      expect(zeroCtx.preemptedRequests).toBe(10)
     })
   })
 
