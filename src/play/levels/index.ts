@@ -1,14 +1,14 @@
 import type { LevelDefinition } from "../types"
-import { Level0Component } from "./level-0"
+import { TokensLevelComponent } from "./tokens"
 
-export { Level0Component } from "./level-0"
+export { TokensLevelComponent } from "./tokens"
 
 export const level0: LevelDefinition = {
-  id: "how-it-works",
+  id: "tokens",
   number: 0,
-  title: "How this works",
-  concept: "Learn how interactive levels, try sandboxes, and challenges work.",
-  Component: Level0Component,
+  title: "Tokens",
+  concept: "What the model actually reads: chunks of text mapped to integer IDs.",
+  Component: TokensLevelComponent,
 }
 
 /**
