@@ -90,9 +90,9 @@ describe("Level 3: KV Cache Memory", () => {
     fireEvent.click(screen.getByRole("tab", { name: /try/i }))
 
     // Initial state: Llama-3-8B on 1x A100 (80GB) with 32 users @ 8K context fits with 0 preemption
-    expect(
-      screen.getByText(/All 32 requests served/i)
-    ).toBeInTheDocument()
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /All 32 requests served/i
+    )
 
     // Switch model to Llama-3-70B on 1x A100 (80GB) where weights (140GB) exceed 80GB VRAM
     const modelGroup = screen.getByRole("radiogroup", {
@@ -103,9 +103,9 @@ describe("Level 3: KV Cache Memory", () => {
     fireEvent.click(llama70bBtn)
 
     // Preemption alert is displayed explaining eviction and recomputation penalty
-    expect(
-      screen.getByText(/Preemption Detected: 32 of 32 requests preempted!/i)
-    ).toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /Preemption Detected: 32 of 32 requests preempted!/i
+    )
     expect(screen.getByText(/Why this hurts \(Recomputation\)/i)).toBeInTheDocument()
   })
 

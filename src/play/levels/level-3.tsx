@@ -712,6 +712,7 @@ export function Level3Component({ onComplete }: LevelProps) {
                 <div
                   role="status"
                   aria-live="polite"
+                  aria-atomic="true"
                   className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-4 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300"
                 >
                   <div className="flex items-center gap-2">
@@ -943,6 +944,9 @@ export function Level3Component({ onComplete }: LevelProps) {
 
               {/* Goal 1 Outcome Feedback */}
               <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
                 className={`rounded-md p-3 text-xs flex items-start gap-2.5 ${
                   goal1Passed
                     ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30"
@@ -1092,6 +1096,9 @@ export function Level3Component({ onComplete }: LevelProps) {
 
               {/* Goal 2 Outcome Feedback */}
               <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
                 className={`rounded-md p-3 text-xs flex items-start gap-2.5 ${
                   goal2Passed
                     ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30"

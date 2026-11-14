@@ -87,7 +87,7 @@ describe("PlayPage end-to-end integration", () => {
   it("opens Level 4 (Batching) from picker and displays batching level", () => {
     window.localStorage.setItem(
       "inference-lab:play:progress",
-      JSON.stringify({ completedLevelIds: ["prefill-decode"] })
+      JSON.stringify({ completedLevelIds: ["kv-cache"] })
     )
 
     render(<PlayPage />)
