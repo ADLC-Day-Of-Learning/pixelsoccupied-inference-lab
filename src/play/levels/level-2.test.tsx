@@ -187,7 +187,9 @@ describe("Play Level 2: Prefill vs. Decode", () => {
 
     // Goal 2: "Find a setup where decode, not prefill, dominates total time"
     // Adjust output tokens to 500 so decode dominates
-    const output500Btn = screen.getByRole("button", { name: /500 tok/i })
+    const output500Btn = screen.getByRole("button", {
+      name: /500 tok \(output\)/i,
+    })
     fireEvent.click(output500Btn)
 
     // Both goals are now satisfied!
@@ -215,11 +217,15 @@ describe("Play Level 2: Prefill vs. Decode", () => {
     expect(screen.getByText(/\(≤ 50%\)/i)).toBeInTheDocument()
 
     // Set prompt tokens to 200 via button
-    const prompt200Buttons = screen.getAllByRole("button", { name: /200 tok/i })
-    fireEvent.click(prompt200Buttons[0]) // first one is prompt tokens
+    const prompt200Btn = screen.getByRole("button", {
+      name: /200 tok \(prompt\)/i,
+    })
+    fireEvent.click(prompt200Btn)
 
     // Set output tokens to 500 via button
-    const output500Btn = screen.getByRole("button", { name: /500 tok/i })
+    const output500Btn = screen.getByRole("button", {
+      name: /500 tok \(output\)/i,
+    })
     fireEvent.click(output500Btn)
 
     // Goal 2 is met: decode dominates

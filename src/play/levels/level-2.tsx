@@ -879,6 +879,7 @@ export function Level2Component({ onComplete }: LevelProps) {
                     variant={challengePromptTokens === num ? "default" : "outline"}
                     className="h-5 text-[10px] px-1.5"
                     onClick={() => setChallengePromptTokens(num)}
+                    aria-label={`${num} tok (Prompt)`}
                   >
                     {num} tok
                   </Button>
@@ -916,6 +917,7 @@ export function Level2Component({ onComplete }: LevelProps) {
                     variant={challengeOutputTokens === num ? "default" : "outline"}
                     className="h-5 text-[10px] px-1.5"
                     onClick={() => setChallengeOutputTokens(num)}
+                    aria-label={`${num} tok (Output)`}
                   >
                     {num} tok
                   </Button>
