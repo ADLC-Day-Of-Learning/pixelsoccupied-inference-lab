@@ -67,6 +67,12 @@ It is deployed to GitHub Pages as static files.
   tests in `src/lib/model.test.ts`.
 - **Show the formula.** Every calculator output displays the formula used and
   the values plugged in, so the user can check the math by hand.
+- **Verifiable walkthrough diagrams.** Educational walkthrough diagrams,
+  pipeline illustrations, and example step values in Play levels must derive
+  their displayed figures directly from canonical functions in `src/lib/` or
+  display verifiable deterministic outputs that match interactive presets in the
+  Try sandbox. Never hardcode arbitrary mock numbers that contradict
+  interactive simulator tools.
 - **Units are explicit.** Every displayed number has a unit (GB, ms, tokens/s,
   $/1M tokens). Use decimal GB (1 GB = 1e9 bytes) and say so in the UI.
 - **Estimates, not benchmarks.** Keep a visible note that results are rough
