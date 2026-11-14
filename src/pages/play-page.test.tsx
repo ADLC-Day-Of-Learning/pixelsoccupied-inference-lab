@@ -83,4 +83,27 @@ describe("PlayPage end-to-end integration", () => {
       "available"
     )
   })
+
+  it("opens Level 4 (Batching) from picker and displays batching level", () => {
+    render(<PlayPage />)
+
+    const level4Card = screen.getByTestId("level-card-batching")
+    expect(level4Card).toBeInTheDocument()
+    expect(level4Card).toHaveAttribute("data-level-state", "available")
+
+    fireEvent.click(level4Card)
+
+    expect(
+      screen.getByText("Batching (static vs continuous)")
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Batching: Static vs Continuous")
+    ).toBeInTheDocument()
+
+    // Move to Try tab
+    fireEvent.click(screen.getByRole("tab", { name: /try/i }))
+    expect(
+      screen.getByRole("radiogroup", { name: /batching strategy/i })
+    ).toBeInTheDocument()
+  })
 })
