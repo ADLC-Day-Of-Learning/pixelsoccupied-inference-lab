@@ -29,6 +29,7 @@ import {
   MODEL_PRESETS,
   GPU_PRESETS,
   BYTES_PER_PARAM,
+  BYTES_IN_GB,
   type WeightPrecision,
 } from "@/lib/model"
 
@@ -53,8 +54,8 @@ export function Level5Component({ onComplete }: LevelProps) {
 
   // Math derivations
   const weightBytes = calculateWeightMemory(model.parameters, precision)
-  const weightGb = weightBytes / 1e9
-  const totalGpuMemoryBytes = gpu.memoryGb * 1e9 * gpuCount
+  const weightGb = weightBytes / BYTES_IN_GB
+  const totalGpuMemoryBytes = gpu.memoryGb * BYTES_IN_GB * gpuCount
 
   const memoryFit = evaluateMemoryFit({
     parameters: model.parameters,
@@ -248,7 +249,7 @@ export function Level5Component({ onComplete }: LevelProps) {
               className="gap-1.5"
             >
               <span>Continue to Try</span>
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -384,7 +385,7 @@ export function Level5Component({ onComplete }: LevelProps) {
                   <span className="font-semibold uppercase tracking-wider">
                     Memory Fit
                   </span>
-                  <HardDrive className="size-4" />
+                  <HardDrive className="size-4" aria-hidden="true" />
                 </div>
                 <CardTitle className="text-lg font-bold font-mono">
                   {fits ? (
@@ -414,7 +415,7 @@ export function Level5Component({ onComplete }: LevelProps) {
                   <span className="font-semibold uppercase tracking-wider">
                     Decode Speed
                   </span>
-                  <Zap className="size-4" />
+                  <Zap className="size-4" aria-hidden="true" />
                 </div>
                 <CardTitle className="text-lg font-bold font-mono">
                   {fits ? (
@@ -445,7 +446,7 @@ export function Level5Component({ onComplete }: LevelProps) {
                   <span className="font-semibold uppercase tracking-wider">
                     Serving Cost
                   </span>
-                  <DollarSign className="size-4" />
+                  <DollarSign className="size-4" aria-hidden="true" />
                 </div>
                 <CardTitle className="text-lg font-bold font-mono">
                   {fits ? (
@@ -474,7 +475,7 @@ export function Level5Component({ onComplete }: LevelProps) {
                   <span className="font-semibold uppercase tracking-wider">
                     Quality Score
                   </span>
-                  <Star className="size-4" />
+                  <Star className="size-4" aria-hidden="true" />
                 </div>
                 <CardTitle className="text-lg font-bold font-mono text-primary">
                   {qualityScore} / 100
@@ -507,7 +508,7 @@ export function Level5Component({ onComplete }: LevelProps) {
               className="gap-1.5"
             >
               <span>Continue to Challenge</span>
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -566,12 +567,19 @@ export function Level5Component({ onComplete }: LevelProps) {
                 {goal1Achieved || isGoal1Met ? (
                   <Badge
                     variant="default"
+                    role="status"
+                    aria-live="polite"
                     className="bg-emerald-600 hover:bg-emerald-600 text-white text-[11px]"
                   >
                     Goal 1 Met ✓
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[11px]">
+                  <Badge
+                    variant="outline"
+                    role="status"
+                    aria-live="polite"
+                    className="text-[11px]"
+                  >
                     Incomplete
                   </Badge>
                 )}
@@ -644,12 +652,19 @@ export function Level5Component({ onComplete }: LevelProps) {
                 {goal2Achieved || isGoal2Met ? (
                   <Badge
                     variant="default"
+                    role="status"
+                    aria-live="polite"
                     className="bg-emerald-600 hover:bg-emerald-600 text-white text-[11px]"
                   >
                     Goal 2 Met ✓
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[11px]">
+                  <Badge
+                    variant="outline"
+                    role="status"
+                    aria-live="polite"
+                    className="text-[11px]"
+                  >
                     Incomplete
                   </Badge>
                 )}
@@ -804,17 +819,17 @@ export function Level5Component({ onComplete }: LevelProps) {
             >
               {isCompleted ? (
                 <>
-                  <CheckCircle2 className="size-4 text-emerald-600" />
+                  <CheckCircle2 className="size-4 text-emerald-600" aria-hidden="true" />
                   <span>Level 5 Challenge Completed ✓</span>
                 </>
               ) : bothGoalsMet ? (
                 <>
-                  <Sparkles className="size-4" />
+                  <Sparkles className="size-4" aria-hidden="true" />
                   <span>Complete Level 5 Challenge</span>
                 </>
               ) : (
                 <>
-                  <Target className="size-4" />
+                  <Target className="size-4" aria-hidden="true" />
                   <span>Complete Both Goals to Finish</span>
                 </>
               )}
@@ -833,7 +848,7 @@ export function Level5Component({ onComplete }: LevelProps) {
               className="gap-1.5"
             >
               <span>View Recap</span>
-              <ArrowRight className="size-4" />
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -851,19 +866,19 @@ export function Level5Component({ onComplete }: LevelProps) {
 
           <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
             <div className="flex items-start gap-2.5 text-sm">
-              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 <strong>Quantization trades a little quality for a lot of speed:</strong> Halving numerical precision (FP16 → FP8 → INT4) cuts memory bandwidth requirements by half or three-quarters, directly speeding up decode token generation.
               </span>
             </div>
             <div className="flex items-start gap-2.5 text-sm">
-              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 <strong>Bigger-but-quantized often beats smaller-but-full-precision:</strong> A 70B model quantized to INT4 (quality 95) delivers substantially higher intelligence than an 8B model at FP16 (quality 80), while easily fitting on a single 48GB or 80GB GPU.
               </span>
             </div>
             <div className="flex items-start gap-2.5 text-sm">
-              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+              <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
               <span>
                 <strong>Always verify quality on your specific domain:</strong> Toy benchmark tables provide conceptual heuristics, but true quantization degradation varies with task difficulty, domain knowledge, and prompt length.
               </span>

@@ -124,6 +124,11 @@ describe("Level 5: Quantization and model choice", () => {
 
     // Initially neither goal is met (default: 8B FP16 on 1x A100, quality 80 < 95)
     expect(screen.getAllByText("Incomplete")).toHaveLength(2)
+    const statusBadges = screen.getAllByRole("status")
+    expect(statusBadges).toHaveLength(2)
+    statusBadges.forEach((badge) => {
+      expect(badge).toHaveAttribute("aria-live", "polite")
+    })
     expect(onComplete).not.toHaveBeenCalled()
 
     // Solve Goal 1: Quality >= 95 and cost <= $15.00/1M tokens
@@ -133,7 +138,10 @@ describe("Level 5: Quantization and model choice", () => {
     fireEvent.click(screen.getByRole("radio", { name: /h100/i }))
 
     // Goal 1 is now satisfied!
-    expect(screen.getByText("Goal 1 Met ✓")).toBeInTheDocument()
+    const goal1Badge = screen.getByText("Goal 1 Met ✓")
+    expect(goal1Badge).toBeInTheDocument()
+    expect(goal1Badge).toHaveAttribute("role", "status")
+    expect(goal1Badge).toHaveAttribute("aria-live", "polite")
     expect(onComplete).not.toHaveBeenCalled() // Goal 2 still pending
 
     // Solve Goal 2: Fastest setup with quality >= 79
@@ -143,7 +151,10 @@ describe("Level 5: Quantization and model choice", () => {
     fireEvent.click(screen.getByRole("radio", { name: "8" }))
 
     // Goal 2 is now satisfied!
-    expect(screen.getByText("Goal 2 Met ✓")).toBeInTheDocument()
+    const goal2Badge = screen.getByText("Goal 2 Met ✓")
+    expect(goal2Badge).toBeInTheDocument()
+    expect(goal2Badge).toHaveAttribute("role", "status")
+    expect(goal2Badge).toHaveAttribute("aria-live", "polite")
     expect(screen.getByText("Goals Met ✓")).toBeInTheDocument()
 
     // onComplete has been triggered because both goals were achieved
