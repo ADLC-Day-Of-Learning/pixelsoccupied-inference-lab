@@ -196,7 +196,14 @@ export function LevelPicker({
                   {isLocked ? (
                     <span className="text-muted-foreground flex items-center gap-1">
                       <Lock className="size-3" />
-                      <span>Complete Level {level.number - 1} to unlock</span>
+                      <span>
+                        Complete Level{" "}
+                        {levels
+                          .filter((l) => l.number < level.number)
+                          .sort((a, b) => b.number - a.number)[0]?.number ??
+                          level.number - 1}{" "}
+                        to unlock
+                      </span>
                     </span>
                   ) : isCompleted ? (
                     <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">

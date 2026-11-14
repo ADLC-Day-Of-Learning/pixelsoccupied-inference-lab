@@ -73,6 +73,19 @@ It is deployed to GitHub Pages as static files.
   display verifiable deterministic outputs that match interactive presets in the
   Try sandbox. Never hardcode arbitrary mock numbers that contradict
   interactive simulator tools.
+- **Challenge goals must start in an unfulfilled state.** Every interactive Play
+  level Challenge component must initialize its control states (sliders, toggles,
+  text inputs) such that all challenge goals evaluate to `false` (`In Progress`)
+  upon initial render. Challenge completion must strictly require deliberate user
+  manipulation of the relevant interactive parameters.
+- **Challenge tests must verify state transitions.** Component tests
+  (`*.test.tsx`) covering challenge goals must assert that the goal begins in
+  its unfulfilled state (e.g.,
+  `expect(screen.getByText(/In Progress/i)).toBeInTheDocument()`) before
+  simulating user interaction, and transitions to fulfilled (e.g.,
+  `expect(screen.getByText(/Passed ✓/i)).toBeInTheDocument()`) only after the
+  interaction events fire. Never assert the passed state alone without first
+  establishing the unfulfilled initial baseline.
 - **Units are explicit.** Every displayed number has a unit (GB, ms, tokens/s,
   $/1M tokens). Use decimal GB (1 GB = 1e9 bytes) and say so in the UI.
 - **Estimates, not benchmarks.** Keep a visible note that results are rough
