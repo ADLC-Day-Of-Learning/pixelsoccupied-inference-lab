@@ -703,6 +703,9 @@ export function Level1Component({ onComplete }: LevelProps) {
                 </div>
 
                 <Badge
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
                   variant={isGoal1Effective ? "default" : "outline"}
                   className={
                     isGoal1Effective
@@ -765,6 +768,9 @@ export function Level1Component({ onComplete }: LevelProps) {
                 </div>
 
                 <Badge
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
                   variant={isGoal2Effective ? "default" : "outline"}
                   className={
                     isGoal2Effective

@@ -107,6 +107,14 @@ describe("Level1Component (Play Level 1: Sampling)", () => {
     expect(screen.getByText(/Goal 1: Deterministic Output/i)).toBeInTheDocument()
     expect(screen.getByText(/Goal 2: Safe Diversity/i)).toBeInTheDocument()
 
+    const pendingBadges = screen.getAllByText("Pending")
+    expect(pendingBadges.length).toBe(2)
+    pendingBadges.forEach((badge) => {
+      expect(badge).toHaveAttribute("role", "status")
+      expect(badge).toHaveAttribute("aria-live", "polite")
+      expect(badge).toHaveAttribute("aria-atomic", "true")
+    })
+
     // Navigate back to Try to configure Goal 1 (Top-K = 1 for 100% Paris)
     const tryTab = screen.getByRole("tab", { name: /try/i })
     fireEvent.click(tryTab)
@@ -123,6 +131,10 @@ describe("Level1Component (Play Level 1: Sampling)", () => {
 
     // Goal 1 is passed
     expect(screen.getByText(/✓ Goal met! Paris answered 20\/20 times/i)).toBeInTheDocument()
+    const passedBadge = screen.getByText("Passed ✓")
+    expect(passedBadge).toHaveAttribute("role", "status")
+    expect(passedBadge).toHaveAttribute("aria-live", "polite")
+    expect(passedBadge).toHaveAttribute("aria-atomic", "true")
     // Goal 2 is not yet met
     expect(handleComplete).not.toHaveBeenCalled()
 
@@ -176,7 +188,13 @@ describe("Level1Component (Play Level 1: Sampling)", () => {
     fireEvent.click(challengeTab)
 
     expect(screen.getByText(/Completed ✓/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/Passed ✓/i).length).toBe(2)
+    const passedBadges = screen.getAllByText(/Passed ✓/i)
+    expect(passedBadges.length).toBe(2)
+    passedBadges.forEach((badge) => {
+      expect(badge).toHaveAttribute("role", "status")
+      expect(badge).toHaveAttribute("aria-live", "polite")
+      expect(badge).toHaveAttribute("aria-atomic", "true")
+    })
 
     const statusRegions = screen.getAllByRole("status")
     const masteredRegion = statusRegions.find((el) =>
