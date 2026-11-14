@@ -54,6 +54,12 @@ It is deployed to GitHub Pages as static files.
   queries (e.g.,
   `expect(screen.getByRole("radiogroup", { name: /.../i })).toBeInTheDocument()`)
   rather than querying unassociated child items or raw text alone.
+- **Pure domain logic in `src/lib/`.** All domain algorithms, tokenizers,
+  mathematical models, and sampling logic live in `src/lib/*.ts` as pure, typed
+  functions (inputs in, numbers or data out; no React, no DOM, and no Tailwind
+  CSS class strings or presentation styling). UI presentation styling, chip
+  color palettes, and CSS class mappings must remain in component files
+  (`src/play/levels/` or `src/components/`).
 - **One source of truth for the math.** All formulas live in
   `src/lib/model.ts` as pure, typed functions (inputs in, numbers out; no React,
   no DOM). UI code and game levels import from it; never duplicate a formula.
@@ -102,8 +108,8 @@ src/
   components/ui/       # generated shadcn components (do not hand-edit)
   pages/               # calculator-page.tsx, play-page.tsx
   play/                # Play mode shell, level components, and progress tracking
-  lib/model.ts         # pure formulas
-  lib/model.test.ts    # Vitest tests for the formulas
+  lib/*.ts             # pure domain logic (formulas, tokenizer, sampling, batching; no React, no DOM, no Tailwind/CSS styling)
+  lib/*.test.ts        # Vitest tests for domain logic
 ```
 
 ## Commands
