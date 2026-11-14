@@ -13,30 +13,39 @@ describe("PlayPage end-to-end integration", () => {
     cleanup()
   })
 
-  it("opens on level picker, opens placeholder level, completes it, and persists completion", () => {
+  it("opens on level picker, opens Level 0 Tokens, completes challenges, and persists completion", () => {
     const { unmount } = render(<PlayPage />)
 
-    // 1. Initial state: Level picker with placeholder level
+    // 1. Initial state: Level picker with Level 0 Tokens
     expect(screen.getByText("Inference Play")).toBeInTheDocument()
     expect(screen.getByText(/0 of \d+ complete/i)).toBeInTheDocument()
 
-    const level0Card = screen.getByTestId("level-card-how-it-works")
+    const level0Card = screen.getByTestId("level-card-tokens")
     expect(level0Card).toHaveAttribute("data-level-state", "available")
 
     // 2. Open Level 0
     fireEvent.click(level0Card)
-    expect(screen.getByText("How this works")).toBeInTheDocument()
+    expect(screen.getByText("Tokens")).toBeInTheDocument()
     expect(screen.getByText("Not yet")).toBeInTheDocument()
 
     // 3. Move to Challenge tab
     const challengeTab = screen.getByRole("tab", { name: /challenge/i })
     fireEvent.click(challengeTab)
 
-    // 4. Click complete challenge button
-    const completeButton = screen.getByRole("button", {
-      name: /complete level 0 challenge/i,
+    // 4. Complete Goal 1 and Goal 2
+    const sentenceInput = screen.getByRole("textbox", {
+      name: /your sentence/i,
     })
-    fireEvent.click(completeButton)
+    const wordInput = screen.getByRole("textbox", {
+      name: /your word/i,
+    })
+
+    fireEvent.change(sentenceInput, {
+      target: { value: "The quick brown fox jumps over the lazy dog." },
+    })
+    fireEvent.change(wordInput, {
+      target: { value: "antidisestablishmentarianism" },
+    })
 
     // 5. Celebration and completion badge appear
     expect(screen.getByText(/Complete ✓/i)).toBeInTheDocument()
@@ -48,7 +57,7 @@ describe("PlayPage end-to-end integration", () => {
 
     // 7. Picker reflects completed status
     expect(screen.getByText(/1 of \d+ complete/i)).toBeInTheDocument()
-    expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
+    expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "completed"
     )
@@ -58,7 +67,7 @@ describe("PlayPage end-to-end integration", () => {
     // 8. Simulate reload by remounting PlayPage: progress persists from localStorage
     render(<PlayPage />)
     expect(screen.getByText(/1 of \d+ complete/i)).toBeInTheDocument()
-    expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
+    expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "completed"
     )
@@ -69,7 +78,7 @@ describe("PlayPage end-to-end integration", () => {
     const confirmButton = screen.getByRole("button", { name: /confirm reset/i })
     fireEvent.click(confirmButton)
     expect(screen.getByText(/0 of \d+ complete/i)).toBeInTheDocument()
-    expect(screen.getByTestId("level-card-how-it-works")).toHaveAttribute(
+    expect(screen.getByTestId("level-card-tokens")).toHaveAttribute(
       "data-level-state",
       "available"
     )

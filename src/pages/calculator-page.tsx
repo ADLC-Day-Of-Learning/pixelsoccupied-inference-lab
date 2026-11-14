@@ -44,7 +44,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+
 import {
   Select,
   SelectContent,
@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 const MODEL_PRESET_ITEMS: Record<string, string> = {
@@ -68,6 +69,12 @@ const GPU_PRESET_ITEMS: Record<string, string> = {
 }
 
 export function CalculatorPage() {
+  const resultsRef = React.useRef<HTMLDivElement>(null)
+
+  const scrollToResults = () => {
+    resultsRef.current?.scrollIntoView?.({ behavior: "smooth" })
+  }
+
   // Model state
   const [modelPreset, setModelPreset] = React.useState<string>("llama-3-8b")
   const [paramsBillions, setParamsBillions] = React.useState<number>(8)
@@ -231,7 +238,7 @@ export function CalculatorPage() {
 
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pb-16 md:pb-8">
       {/* Main Grid: Inputs on Left/Top, Outputs on Right/Bottom */}
       <div className="grid gap-6 lg:grid-cols-12">
         {/* INPUTS SECTION */}
@@ -539,28 +546,113 @@ export function CalculatorPage() {
         </div>
 
         {/* OUTPUTS SECTION */}
-        <div className="space-y-6 lg:col-span-7">
-          {/* Fit / Verdict Banner */}
-          {fitResult.fits ? (
-            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200">
-              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-              <AlertTitle className="font-semibold">Fits in Memory</AlertTitle>
-              <AlertDescription className="text-xs">
-                Model weights require {weightMemoryGb.toFixed(1)} GB out of{" "}
-                {(totalGpuMemoryBytes / BYTES_IN_GB).toFixed(1)} GB total GPU
-                memory, leaving {freeMemoryGb.toFixed(1)} GB for the KV cache
-                after {overheadGb.toFixed(1)} GB runtime overhead.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert variant="destructive">
-              <AlertCircle className="size-4" />
-              <AlertTitle className="font-semibold">Does Not Fit</AlertTitle>
-              <AlertDescription className="text-xs font-mono">
-                {fitResult.verdict}
-              </AlertDescription>
-            </Alert>
-          )}
+        <div ref={resultsRef} className="space-y-4 lg:col-span-7 scroll-mt-16">
+          {/* HERO RESULT PANEL */}
+          <Card
+            data-testid="hero-result-panel"
+            className={cn(
+              "overflow-hidden border-2 shadow-sm transition-colors",
+              fitResult.fits
+                ? "border-emerald-500/30 bg-emerald-500/[0.04] dark:border-emerald-500/20 dark:bg-emerald-500/[0.06]"
+                : "border-destructive/30 bg-destructive/[0.04] dark:border-destructive/20 dark:bg-destructive/[0.06]"
+            )}
+          >
+            <CardHeader className="p-4 sm:p-5 pb-3 sm:pb-3">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                {/* Verdict Section */}
+                <div
+                  className="space-y-1.5 sm:max-w-[55%]"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Memory Fit Verdict
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {fitResult.fits ? (
+                      <CheckCircle2 className="size-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertCircle className="size-6 text-destructive shrink-0" />
+                    )}
+                    <span
+                      className={cn(
+                        "text-2xl sm:text-3xl font-bold tracking-tight",
+                        fitResult.fits
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-destructive"
+                      )}
+                    >
+                      {fitResult.fits ? "Fits" : "Does Not Fit"}
+                    </span>
+                  </div>
+
+                  {fitResult.fits ? (
+                    <p className="text-xs text-muted-foreground leading-relaxed pt-0.5">
+                      Model weights require {weightMemoryGb.toFixed(1)} GB out of{" "}
+                      {(totalGpuMemoryBytes / BYTES_IN_GB).toFixed(1)} GB total GPU
+                      memory, leaving {freeMemoryGb.toFixed(1)} GB for the KV cache
+                      after {overheadGb.toFixed(1)} GB runtime overhead.
+                    </p>
+                  ) : (
+                    <div className="space-y-1 pt-0.5">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="destructive" className="text-xs font-semibold px-2 py-0.5">
+                          {fitResult.shortfallGb.toFixed(1)} GB Shortfall
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed font-mono">
+                        {fitResult.verdict}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Max Concurrent Requests Headline Section */}
+                <div className="flex flex-col sm:items-end sm:text-right border-t pt-3 sm:border-t-0 sm:pt-0 border-border/60">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center sm:justify-end gap-1.5">
+                    <Users className="size-3.5 text-muted-foreground" />
+                    <span>Max Concurrent Requests</span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 sm:justify-end mt-0.5">
+                    <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+                      {maxConcurrency.toLocaleString()}
+                    </span>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      requests
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    @ {contextLength.toLocaleString()} tokens context
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+
+            {/* Max Concurrency Formula Block */}
+            <CardContent className="p-4 sm:p-5 pt-0 sm:pt-0">
+              <Collapsible>
+                <CollapsibleTrigger
+                  aria-label="How is this calculated? (Max Concurrent Requests)"
+                  className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+                >
+                  <span>How is this calculated?</span>
+                  <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/40 border border-border/50 p-2.5 rounded-md">
+                    <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5 flex items-center justify-between">
+                      <span>Formula: Max Concurrent Requests</span>
+                      <span>floor(kv_capacity ÷ context_length)</span>
+                    </div>
+                    <div className="text-foreground text-[11px] font-mono mt-0.5">
+                      floor({kvCapacityTokens.toLocaleString()} tokens ÷ {contextLength.toLocaleString()} tokens) = {maxConcurrency.toLocaleString()} requests
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </CardContent>
+          </Card>
 
           {/* GPU Memory Breakdown Stacked Bar Card */}
           <Card>
@@ -744,20 +836,20 @@ export function CalculatorPage() {
             </CardContent>
           </Card>
 
-          {/* Output Cards Grid */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Secondary Metrics Grid */}
+          <div className="grid gap-3 sm:grid-cols-2">
             {/* Output 1: Weight Memory */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+            <Card className="bg-card/70 shadow-none border-border/70">
+              <CardHeader className="p-3.5 pb-1.5">
+                <CardDescription className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                   <span>Weight Memory</span>
                   <HardDrive className="size-3.5 text-muted-foreground" />
                 </CardDescription>
-                <CardTitle className="text-2xl font-bold">
-                  {weightMemoryGb.toFixed(1)} <span className="text-sm font-normal text-muted-foreground">GB</span>
+                <CardTitle className="text-xl font-bold">
+                  {weightMemoryGb.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">GB</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="p-3.5 pt-0">
                 <Collapsible>
                   <CollapsibleTrigger
                     aria-label="How is this calculated? (Weight Memory)"
@@ -767,10 +859,10 @@ export function CalculatorPage() {
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/40 p-2 rounded text-[11px]">
                       <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
                       <div>parameters × bytes_per_param</div>
-                      <div className="text-foreground mt-1 text-[11px]">
+                      <div className="text-foreground mt-0.5">
                         {paramsBillions}B × {BYTES_PER_PARAM[weightPrecision]} B = {weightMemoryGb.toFixed(1)} GB
                       </div>
                     </div>
@@ -780,20 +872,20 @@ export function CalculatorPage() {
             </Card>
 
             {/* Output 2: KV Cache per Token */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+            <Card className="bg-card/70 shadow-none border-border/70">
+              <CardHeader className="p-3.5 pb-1.5">
+                <CardDescription className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                   <span>KV Cache per Token</span>
                   <Database className="size-3.5 text-muted-foreground" />
                 </CardDescription>
-                <CardTitle className="text-2xl font-bold">
+                <CardTitle className="text-xl font-bold">
                   {kvCachePerTokenKb.toFixed(2)}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">
+                  <span className="text-xs font-normal text-muted-foreground">
                     KB [{kvCachePerTokenBytes.toLocaleString()} B]
                   </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="p-3.5 pt-0">
                 <Collapsible>
                   <CollapsibleTrigger
                     aria-label="How is this calculated? (KV Cache per Token)"
@@ -803,10 +895,10 @@ export function CalculatorPage() {
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/40 p-2 rounded text-[11px]">
                       <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
                       <div>2 × layers × kv_heads × head_dim × bytes_per_element</div>
-                      <div className="text-foreground mt-1 text-[11px]">
+                      <div className="text-foreground mt-0.5">
                         2 × {layers} × {kvHeads} × {headDim} × {BYTES_PER_KV_ELEMENT[kvPrecision]} B = {kvCachePerTokenBytes.toLocaleString()} B ({kvCachePerTokenKb.toFixed(2)} KB)
                       </div>
                     </div>
@@ -816,17 +908,17 @@ export function CalculatorPage() {
             </Card>
 
             {/* Output 3: Free Memory for KV Cache */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+            <Card className="bg-card/70 shadow-none border-border/70">
+              <CardHeader className="p-3.5 pb-1.5">
+                <CardDescription className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                   <span>Free Memory for KV</span>
                   <Server className="size-3.5 text-muted-foreground" />
                 </CardDescription>
-                <CardTitle className="text-2xl font-bold">
-                  {freeMemoryGb.toFixed(1)} <span className="text-sm font-normal text-muted-foreground">GB</span>
+                <CardTitle className="text-xl font-bold">
+                  {freeMemoryGb.toFixed(1)} <span className="text-xs font-normal text-muted-foreground">GB</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="p-3.5 pt-0">
                 <Collapsible>
                   <CollapsibleTrigger
                     aria-label="How is this calculated? (Free Memory for KV)"
@@ -836,10 +928,10 @@ export function CalculatorPage() {
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/40 p-2 rounded text-[11px]">
                       <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
                       <div>(gpu_memory × gpus) − weight_memory − overhead</div>
-                      <div className="text-foreground mt-1 text-[11px]">
+                      <div className="text-foreground mt-0.5">
                         ({gpuMemoryGb} GB × {gpuCount}) − {weightMemoryGb.toFixed(1)} GB − {overheadGb.toFixed(1)} GB = {freeMemoryGb.toFixed(1)} GB
                       </div>
                     </div>
@@ -849,18 +941,18 @@ export function CalculatorPage() {
             </Card>
 
             {/* Output 4: KV Capacity */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+            <Card className="bg-card/70 shadow-none border-border/70">
+              <CardHeader className="p-3.5 pb-1.5">
+                <CardDescription className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                   <span>KV Capacity</span>
                   <Cpu className="size-3.5 text-muted-foreground" />
                 </CardDescription>
-                <CardTitle className="text-2xl font-bold">
+                <CardTitle className="text-xl font-bold">
                   {kvCapacityTokens.toLocaleString()}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">tokens</span>
+                  <span className="text-xs font-normal text-muted-foreground">tokens</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="p-3.5 pt-0">
                 <Collapsible>
                   <CollapsibleTrigger
                     aria-label="How is this calculated? (KV Capacity)"
@@ -870,49 +962,11 @@ export function CalculatorPage() {
                     <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/40 p-2 rounded text-[11px]">
                       <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
                       <div>free_memory ÷ kv_per_token</div>
-                      <div className="text-foreground mt-1 text-[11px]">
+                      <div className="text-foreground mt-0.5">
                         ({freeMemoryGb.toFixed(1)} GB × 10⁹ B/GB) ÷ {kvCachePerTokenBytes.toLocaleString()} B = {kvCapacityTokens.toLocaleString()} tokens
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </CardContent>
-            </Card>
-
-            {/* Output 5: Max Concurrent Requests */}
-            <Card className="sm:col-span-2">
-              <CardHeader className="pb-2">
-                <CardDescription className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                  <span>Max Concurrent Requests</span>
-                  <Users className="size-3.5 text-muted-foreground" />
-                </CardDescription>
-                <div className="flex items-baseline gap-2">
-                  <CardTitle className="text-3xl font-bold">
-                    {maxConcurrency}
-                  </CardTitle>
-                  <span className="text-sm text-muted-foreground">
-                    concurrent requests @ {contextLength.toLocaleString()} tokens/request
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Collapsible>
-                  <CollapsibleTrigger
-                    aria-label="How is this calculated? (Max Concurrent Requests)"
-                    className="group flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
-                  >
-                    <span>How is this calculated?</span>
-                    <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="mt-2 text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
-                      <div className="text-[10px] text-muted-foreground uppercase font-sans mb-0.5">Formula:</div>
-                      <div>floor(kv_capacity ÷ context_length)</div>
-                      <div className="text-foreground mt-1 text-[11px]">
-                        floor({kvCapacityTokens.toLocaleString()} tokens ÷ {contextLength.toLocaleString()} tokens) = {maxConcurrency} requests
                       </div>
                     </div>
                   </CollapsibleContent>
@@ -925,6 +979,74 @@ export function CalculatorPage() {
             Rough estimates for learning, not benchmarks. 1 GB = 10⁹ bytes.
           </p>
         </div>
+      </div>
+
+      {/* Mobile Sticky Summary Bar (<768px) */}
+      <div
+        data-testid="mobile-sticky-summary"
+        className="sticky bottom-0 z-20 -mx-4 -mb-4 border-t border-border bg-background/95 p-2.5 backdrop-blur-sm shadow-md md:hidden"
+      >
+        <button
+          type="button"
+          onClick={scrollToResults}
+          aria-label={
+            fitResult.fits
+              ? `Fits: ${maxConcurrency.toLocaleString()} requests. Scroll to full results.`
+              : `Does Not Fit: ${fitResult.shortfallGb.toFixed(1)} GB Shortfall, 0 requests. Scroll to full results.`
+          }
+          className={cn(
+            "flex w-full items-center justify-between gap-3 rounded-lg border p-2.5 text-left shadow-xs transition-colors cursor-pointer",
+            fitResult.fits
+              ? "border-emerald-500/30 bg-emerald-500/[0.08] dark:border-emerald-500/20 dark:bg-emerald-500/[0.12] hover:bg-emerald-500/[0.12]"
+              : "border-destructive/30 bg-destructive/[0.08] dark:border-destructive/20 dark:bg-destructive/[0.12] hover:bg-destructive/[0.12]"
+          )}
+        >
+          {/* Verdict Info */}
+          <div className="flex items-center gap-2 min-w-0">
+            {fitResult.fits ? (
+              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="size-4 text-destructive shrink-0" />
+            )}
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span
+                className={cn(
+                  "text-sm font-bold tracking-tight",
+                  fitResult.fits
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-destructive"
+                )}
+              >
+                {fitResult.fits ? "Fits" : "Does Not Fit"}
+              </span>
+              {!fitResult.fits && (
+                <Badge
+                  variant="destructive"
+                  className="text-[10px] font-semibold px-1.5 py-0 h-4"
+                >
+                  {fitResult.shortfallGb.toFixed(1)} GB Shortfall
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Concurrency Info & Action Hint */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 text-right">
+              <Users className="size-3.5 text-muted-foreground" />
+              <span className="text-sm font-bold text-foreground">
+                {maxConcurrency.toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                requests
+              </span>
+            </div>
+            <ChevronDown
+              className="size-4 text-muted-foreground shrink-0"
+              aria-hidden="true"
+            />
+          </div>
+        </button>
       </div>
     </div>
   )
