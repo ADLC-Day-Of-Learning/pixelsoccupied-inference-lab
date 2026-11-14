@@ -76,6 +76,9 @@ Use these unless an issue says otherwise:
 
 - Weight memory (bytes) = parameters × bytes per parameter
   (FP16/BF16 = 2, FP8 = 1, INT4 = 0.5)
+- Available memory for weights (bytes) = (GPU memory × GPUs) − overhead
+- Memory fit: model fits if weight memory ≤ available memory for weights
+- Memory shortfall (bytes) = max(0, weight memory − available memory for weights)
 - KV cache per token (bytes) = 2 × layers × KV heads × head dim × bytes per element
 - KV capacity (tokens) = (GPU memory × GPUs − weight memory − overhead) ÷ KV per token
 - Prefill time ≈ 2 × parameters × prompt tokens ÷ (peak FLOPS × utilization)
@@ -87,6 +90,8 @@ Sanity checks the tests must include:
 - 70B params at FP16 → 140 GB of weights
 - Llama-3-8B (32 layers, 8 KV heads, head dim 128) at FP16 → 131,072 bytes
   (128 KiB) of KV cache per token
+- 80 GB weights on 80 GB GPU with 8 GB overhead → 8 GB shortfall (fits: false)
+- 80.1 GB weights on 80 GB GPU with 8 GB overhead → 8.1 GB shortfall (continuous across total GPU memory boundary)
 
 ## Layout
 
