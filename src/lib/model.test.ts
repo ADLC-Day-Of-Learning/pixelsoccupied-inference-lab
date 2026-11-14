@@ -13,6 +13,7 @@ import {
   estimatePrefillTime,
   estimateDecodeStepTime,
   estimateDecodeTokensPerSecond,
+  estimateRequestLatency,
   GPU_PRESETS,
   BYTES_IN_GB,
   CONTEXT_LENGTH_PRESETS,
@@ -703,6 +704,137 @@ describe("model formulas", () => {
       const throughput = estimateDecodeTokensPerSecond({ stepTimeSeconds: 0.01, batchSize: 0 })
       expect(throughput.perRequestTokensPerSecond).toBe(0)
       expect(throughput.aggregateTokensPerSecond).toBe(0)
+    })
+  })
+
+  describe("estimateRequestLatency", () => {
+    it("calculates end-to-end request latency breakdown correctly for Llama-3-8B on H100", () => {
+      // 8B on H100 with 4,000 prompt tokens and 100 output tokens
+      const result = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 4000,
+        outputTokens: 100,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+        layers: 32,
+        kvHeads: 8,
+        headDim: 128,
+        weightPrecision: "FP16",
+        kvPrecision: "FP16",
+      })
+
+      // Prefill arithmetic:
+      //   2 * 8e9 * 4000 = 64e12 FLOPs
+      //   989e12 * 0.5 = 494.5e12 effective FLOPs
+      //   prefillSeconds = 64 / 494.5 ≈ 0.12942s (~129.4 ms)
+      expect(result.prefillSeconds).toBeCloseTo(0.1294, 3)
+      expect(result.prefillMs).toBeCloseTo(129.4, 0)
+      expect(result.prefillMs).toBeLessThan(200)
+
+      // Decode step time arithmetic:
+      //   weights = 8e9 * 2 = 16 GB
+      //   KV read = 4000 * 131,072 = 524,288,000 bytes (~0.524 GB)
+      //   total bytes read per step = 16.524288 GB
+      //   effective bandwidth = 3.35 TB/s * 0.7 = 2.345 TB/s
+      //   step time = 16.524288e9 / 2.345e12 ≈ 0.0070466s (~7.05 ms)
+      expect(result.decodeStepMs).toBeCloseTo(7.05, 1)
+
+      // Total decode for 100 tokens:
+      //   100 * ~7.05 ms ≈ 705 ms (~0.705s)
+      expect(result.totalDecodeMs).toBeCloseTo(705, 0)
+
+      // Total latency: ~129.4 ms + ~705 ms ≈ 834 ms
+      expect(result.totalMs).toBeCloseTo(result.prefillMs + result.totalDecodeMs, 1)
+
+      // Decode dominates total time (705 ms > 129 ms)
+      expect(result.isDecodeDominant).toBe(true)
+      expect(result.decodePercentage).toBeGreaterThan(result.prefillPercentage)
+    })
+
+    it("identifies prefill-dominant setup when prompt is long and output is short", () => {
+      // 8B on A100 with 4,000 prompt tokens and 10 output tokens
+      const result = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 4000,
+        outputTokens: 10,
+        peakTflops: 312,
+        memoryBandwidthTb: 2.0,
+      })
+
+      // Prefill: 64e12 / (312e12 * 0.5) = 64 / 156 ≈ 0.4102s (410 ms)
+      expect(result.prefillMs).toBeCloseTo(410.2, 0)
+      // Decode: 10 * ~11.4 ms ≈ 114 ms
+      expect(result.totalDecodeMs).toBeLessThan(result.prefillMs)
+      expect(result.isDecodeDominant).toBe(false)
+      expect(result.prefillPercentage).toBeGreaterThan(50)
+    })
+
+    it("identifies decode-dominant setup when prompt is short and output is long", () => {
+      // Short chat: 200 prompt tokens, 500 output tokens
+      const result = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 200,
+        outputTokens: 500,
+        peakTflops: 312,
+        memoryBandwidthTb: 2.0,
+      })
+
+      // Prefill: ~20.5 ms
+      expect(result.prefillMs).toBeCloseTo(20.5, 0)
+      // Decode: 500 * ~11.4 ms ≈ 5700 ms
+      expect(result.totalDecodeMs).toBeGreaterThan(5000)
+      expect(result.isDecodeDominant).toBe(true)
+      expect(result.decodePercentage).toBeGreaterThan(90)
+    })
+
+    it("handles zero or non-positive token counts safely without NaN", () => {
+      const zeroPrompt = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 0,
+        outputTokens: 100,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+      })
+      expect(zeroPrompt.prefillSeconds).toBe(0)
+      expect(zeroPrompt.prefillMs).toBe(0)
+      expect(zeroPrompt.isDecodeDominant).toBe(true)
+
+      const zeroOutput = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 1000,
+        outputTokens: 0,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+      })
+      expect(zeroOutput.totalDecodeSeconds).toBe(0)
+      expect(zeroOutput.totalDecodeMs).toBe(0)
+      expect(zeroOutput.isDecodeDominant).toBe(false)
+
+      const zeroBoth = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 0,
+        outputTokens: 0,
+        peakTflops: 989,
+        memoryBandwidthTb: 3.35,
+      })
+      expect(zeroBoth.totalSeconds).toBe(0)
+      expect(zeroBoth.prefillPercentage).toBe(0)
+      expect(zeroBoth.decodePercentage).toBe(0)
+      expect(zeroBoth.isDecodeDominant).toBe(false)
+    })
+
+    it("handles zero hardware capacity safely", () => {
+      const zeroHw = estimateRequestLatency({
+        parameters: 8e9,
+        promptTokens: 1000,
+        outputTokens: 100,
+        peakTflops: 0,
+        memoryBandwidthTb: 0,
+      })
+      expect(zeroHw.prefillSeconds).toBe(0)
+      expect(zeroHw.decodeStepSeconds).toBe(0)
+      expect(zeroHw.totalSeconds).toBe(0)
+      expect(zeroHw.decodeTokensPerSecond).toBe(0)
     })
   })
 })

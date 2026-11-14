@@ -85,6 +85,11 @@ describe("PlayPage end-to-end integration", () => {
   })
 
   it("opens Level 4 (Batching) from picker and displays batching level", () => {
+    window.localStorage.setItem(
+      "inference-lab:play:progress",
+      JSON.stringify({ completedLevelIds: ["prefill-decode"] })
+    )
+
     render(<PlayPage />)
 
     const level4Card = screen.getByTestId("level-card-batching")
