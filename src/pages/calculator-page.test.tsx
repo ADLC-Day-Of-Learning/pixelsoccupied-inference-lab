@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeAll, describe, it, expect } from "vitest"
+import { beforeAll, describe, it, expect, vi } from "vitest"
 import { CalculatorPage } from "@/pages/calculator-page"
 import { App } from "@/App"
 
@@ -107,16 +107,19 @@ describe("CalculatorPage formula collapsibles and unit display", () => {
     expect(screen.queryByText(/free_memory ÷ kv_per_token/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/floor\(kv_capacity ÷ context_length\)/i)).not.toBeInTheDocument()
 
-    // Exactly 5 toggles, one for each output metric card
+    // Exactly 5 toggles, one for each output metric
     const toggles = screen.getAllByRole("button", { name: /how is this calculated\?/i })
     expect(toggles).toHaveLength(5)
 
-    // Expanding the first toggle reveals the weight memory formula
-    await user.click(toggles[0])
+    // Expanding the weight memory toggle reveals its formula
+    const weightToggle = screen.getByRole("button", {
+      name: "How is this calculated? (Weight Memory)",
+    })
+    await user.click(weightToggle)
     expect(await screen.findByText(/parameters × bytes_per_param/i)).toBeVisible()
 
     // Clicking again collapses it
-    await user.click(toggles[0])
+    await user.click(weightToggle)
     expect(screen.queryByText(/parameters × bytes_per_param/i)).not.toBeInTheDocument()
   })
 
@@ -145,21 +148,26 @@ describe("CalculatorPage formula collapsibles and unit display", () => {
     const user = userEvent.setup()
     render(<CalculatorPage />)
 
-    const toggles = screen.getAllByRole("button", { name: /how is this calculated\?/i })
+    const kvToggle = screen.getByRole("button", {
+      name: "How is this calculated? (KV Cache per Token)",
+    })
+    const maxConcurrencyToggle = screen.getByRole("button", {
+      name: "How is this calculated? (Max Concurrent Requests)",
+    })
 
-    // Open only the second card (KV cache per token)
-    await user.click(toggles[1])
+    // Open only the KV cache per token toggle
+    await user.click(kvToggle)
     expect(await screen.findByText(/2 × layers × kv_heads × head_dim/i)).toBeVisible()
     expect(screen.queryByText(/parameters × bytes_per_param/i)).not.toBeInTheDocument()
 
-    // Open the fifth card (Max concurrent requests)
-    await user.click(toggles[4])
+    // Open the Max concurrent requests toggle
+    await user.click(maxConcurrencyToggle)
     expect(await screen.findByText(/floor\(kv_capacity ÷ context_length\)/i)).toBeVisible()
 
-    // Close the second card
-    await user.click(toggles[1])
+    // Close the KV cache toggle
+    await user.click(kvToggle)
     expect(screen.queryByText(/2 × layers × kv_heads × head_dim/i)).not.toBeInTheDocument()
-    // Fifth card is still open
+    // Max concurrent requests is still open
     expect(screen.getByText(/floor\(kv_capacity ÷ context_length\)/i)).toBeVisible()
   })
 
@@ -269,7 +277,7 @@ describe("CalculatorPage context length presets", () => {
     // Verify default selection is 4K (4096 tokens)
     const preset4k = screen.getByRole("radio", { name: /4k/i })
     expect(preset4k).toHaveAttribute("data-state", "on")
-    expect(screen.getByText(/4,096 tokens\/request/i)).toBeInTheDocument()
+    expect(screen.getByText(/@ 4,096 tokens context/i)).toBeInTheDocument()
 
     // Numeric input should not be shown for presets
     expect(
@@ -281,25 +289,25 @@ describe("CalculatorPage context length presets", () => {
     await user.click(preset2k)
     expect(preset2k).toHaveAttribute("data-state", "on")
     expect(preset4k).toHaveAttribute("data-state", "off")
-    expect(screen.getByText(/2,048 tokens\/request/i)).toBeInTheDocument()
+    expect(screen.getByText(/@ 2,048 tokens context/i)).toBeInTheDocument()
 
     // Selecting 32K updates calculations
     const preset32k = screen.getByRole("radio", { name: /32k/i })
     await user.click(preset32k)
     expect(preset32k).toHaveAttribute("data-state", "on")
-    expect(screen.getByText(/32,768 tokens\/request/i)).toBeInTheDocument()
+    expect(screen.getByText(/@ 32,768 tokens context/i)).toBeInTheDocument()
 
     // Selecting 128K updates calculations
     const preset128k = screen.getByRole("radio", { name: /128k/i })
     await user.click(preset128k)
     expect(preset128k).toHaveAttribute("data-state", "on")
-    expect(screen.getByText(/131,072 tokens\/request/i)).toBeInTheDocument()
+    expect(screen.getByText(/@ 131,072 tokens context/i)).toBeInTheDocument()
 
     // Selecting 8K updates calculations
     const preset8k = screen.getByRole("radio", { name: /\b8k\b/i })
     await user.click(preset8k)
     expect(preset8k).toHaveAttribute("data-state", "on")
-    expect(screen.getByText(/8,192 tokens\/request/i)).toBeInTheDocument()
+    expect(screen.getByText(/@ 8,192 tokens context/i)).toBeInTheDocument()
   })
 
   it("reveals numeric input when Custom is selected and validates non-positive values", async () => {
@@ -320,7 +328,7 @@ describe("CalculatorPage context length presets", () => {
     // Entering a valid custom number updates calculations
     await user.clear(customInput)
     await user.type(customInput, "16384")
-    expect(screen.getByText(/16,384 tokens\/request/i)).toBeInTheDocument()
+    expect(screen.getByText(/@ 16,384 tokens context/i)).toBeInTheDocument()
     expect(
       screen.queryByText(/must be greater than 0/i)
     ).not.toBeInTheDocument()
@@ -346,7 +354,7 @@ describe("CalculatorPage context length presets", () => {
       screen.queryByText(/must be greater than 0/i)
     ).not.toBeInTheDocument()
     expect(customInput).toHaveAttribute("aria-invalid", "false")
-    expect(screen.getByText(/8,192 tokens\/request/i)).toBeInTheDocument()
+    expect(screen.getByText(/@ 8,192 tokens context/i)).toBeInTheDocument()
   })
 })
 
@@ -411,6 +419,115 @@ describe("Model configuration card architecture fields", () => {
       screen.queryByLabelText(/parameters \(billions\)/i)
     ).not.toBeInTheDocument()
     expect(screen.queryByText(/^preset$/i)).not.toBeInTheDocument()
+  })
+})
+
+describe("CalculatorPage hero result panel", () => {
+  it("renders large verdict and headline max concurrent requests when model fits", () => {
+    render(<CalculatorPage />)
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+    expect(heroPanel).toBeInTheDocument()
+
+    // Verdict "Fits" in accessible status live region
+    const statusRegion = within(heroPanel).getByRole("status")
+    expect(statusRegion).toHaveAttribute("aria-live", "polite")
+    expect(statusRegion).toHaveAttribute("aria-atomic", "true")
+    expect(within(statusRegion).getByText("Fits")).toBeInTheDocument()
+    expect(
+      within(statusRegion).getByText(/model weights require 16\.0 GB out of 80\.0 GB/i)
+    ).toBeInTheDocument()
+
+    // Headline max concurrent requests
+    expect(within(heroPanel).getByText("Max Concurrent Requests")).toBeInTheDocument()
+    expect(within(heroPanel).getByText("104")).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/@ 4,096 tokens context/i)).toBeInTheDocument()
+
+    // Secondary metrics in compact grid
+    expect(screen.getByText("Weight Memory")).toBeInTheDocument()
+    expect(screen.getByText("KV Cache per Token")).toBeInTheDocument()
+    expect(screen.getByText("Free Memory for KV")).toBeInTheDocument()
+    expect(screen.getByText("KV Capacity")).toBeInTheDocument()
+  })
+
+  it("displays shortfall in GB and 0 concurrent requests when model exceeds capacity", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Select Llama-3-70B preset (140 GB weights on 1x 80 GB GPU with 8 GB overhead -> 68 GB shortfall)
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+
+    // Hero panel shows "Does Not Fit"
+    expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
+
+    // Displays shortfall in GB
+    expect(within(heroPanel).getByText(/68\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(
+      within(heroPanel).getByText(/weights need 140 GB, but only 80 GB is available/i)
+    ).toBeInTheDocument()
+
+    // Max concurrent requests is 0
+    expect(within(heroPanel).getByText("0")).toBeInTheDocument()
+  })
+
+  it("displays shortfall in GB when model exceeds available memory after overhead", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Switch to Custom Dimensions so architecture inputs are displayed
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const customOption = await screen.findByRole("option", {
+      name: /custom dimensions/i,
+    })
+    await user.click(customOption)
+
+    // Set parameters to 37.5B FP16 (75 GB weights) on 1x 80 GB GPU with 8 GB overhead (72 GB available -> 3 GB shortfall)
+    const paramsInput = screen.getByLabelText(/parameters \(billions\)/i)
+    fireEvent.change(paramsInput, { target: { value: "37.5" } })
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+
+    expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/3\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(
+      within(heroPanel).getByText(/weights need 75 GB, but only 72 GB is available after overhead/i)
+    ).toBeInTheDocument()
+    expect(within(heroPanel).getByText("0")).toBeInTheDocument()
+  })
+
+  it("flips from Does Not Fit with shortfall to Fits when GPU count is increased", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    // Select Llama-3-70B on 1x A100 80GB
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    const heroPanel = screen.getByTestId("hero-result-panel")
+
+    expect(within(heroPanel).getByText("Does Not Fit")).toBeInTheDocument()
+    expect(within(heroPanel).getByText(/68\.0 GB Shortfall/i)).toBeInTheDocument()
+
+    // Increase GPU count to 2 (160 GB total memory, 140 GB weights, 16 GB overhead -> 4 GB free)
+    const gpu2Btn = screen.getByRole("radio", { name: "2" })
+    await user.click(gpu2Btn)
+
+    expect(within(heroPanel).getByText("Fits")).toBeInTheDocument()
+    expect(within(heroPanel).queryByText("Does Not Fit")).not.toBeInTheDocument()
+    expect(within(heroPanel).queryByText(/shortfall/i)).not.toBeInTheDocument()
+    expect(within(heroPanel).getByText("Max Concurrent Requests")).toBeInTheDocument()
   })
 })
 
@@ -534,3 +651,81 @@ describe("CalculatorPage stacked GPU memory bar", () => {
     )
   })
 })
+
+describe("CalculatorPage mobile sticky summary bar", () => {
+  it("renders verdict and max concurrent requests in sticky summary bar with md:hidden", () => {
+    render(<CalculatorPage />)
+
+    const summaryBar = screen.getByTestId("mobile-sticky-summary")
+    expect(summaryBar).toBeInTheDocument()
+    expect(summaryBar).toHaveClass("md:hidden")
+    expect(summaryBar).toHaveClass("sticky")
+    expect(summaryBar).toHaveClass("bottom-0")
+
+    // Button has accessible role and name indicating fit and concurrency
+    const summaryButton = within(summaryBar).getByRole("button", {
+      name: /fits.*104 requests.*scroll to full results/i,
+    })
+    expect(summaryButton).toBeInTheDocument()
+    expect(within(summaryBar).getByText("Fits")).toBeInTheDocument()
+    expect(within(summaryBar).getByText("104")).toBeInTheDocument()
+    expect(within(summaryBar).getByText("requests")).toBeInTheDocument()
+  })
+
+  it("updates verdict and max concurrent requests dynamically when inputs change", async () => {
+    const user = userEvent.setup()
+    render(<CalculatorPage />)
+
+    const summaryBar = screen.getByTestId("mobile-sticky-summary")
+
+    // Initially fits
+    expect(within(summaryBar).getByText("Fits")).toBeInTheDocument()
+    expect(within(summaryBar).getByText("104")).toBeInTheDocument()
+
+    // Change model preset to Llama-3-70B (doesn't fit on 1x 80GB GPU)
+    const modelTrigger = screen.getByRole("combobox", { name: /model preset/i })
+    await user.click(modelTrigger)
+    const model70bOption = await screen.findByRole("option", {
+      name: /llama-3-70b/i,
+    })
+    await user.click(model70bOption)
+
+    // Summary bar immediately reflects "Does Not Fit", shortfall, and 0 requests
+    expect(within(summaryBar).getByText("Does Not Fit")).toBeInTheDocument()
+    expect(within(summaryBar).getByText(/68\.0 GB Shortfall/i)).toBeInTheDocument()
+    expect(within(summaryBar).getByText("0")).toBeInTheDocument()
+    expect(
+      within(summaryBar).getByRole("button", {
+        name: /does not fit.*68\.0 gb shortfall.*0 requests.*scroll to full results/i,
+      })
+    ).toBeInTheDocument()
+
+    // Increase GPU count to 2 -> flips back to Fits
+    const gpu2Btn = screen.getByRole("radio", { name: "2" })
+    await user.click(gpu2Btn)
+
+    expect(within(summaryBar).getByText("Fits")).toBeInTheDocument()
+    expect(within(summaryBar).queryByText("Does Not Fit")).not.toBeInTheDocument()
+    expect(within(summaryBar).queryByText(/shortfall/i)).not.toBeInTheDocument()
+    expect(within(summaryBar).getByText("requests")).toBeInTheDocument()
+  })
+
+  it("triggers smooth scrollIntoView on the results section when tapped", async () => {
+    const user = userEvent.setup()
+    const scrollIntoViewMock = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoViewMock
+
+    render(<CalculatorPage />)
+
+    const summaryBar = screen.getByTestId("mobile-sticky-summary")
+    const summaryButton = within(summaryBar).getByRole("button", {
+      name: /scroll to full results/i,
+    })
+
+    await user.click(summaryButton)
+
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1)
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "smooth" })
+  })
+})
+
