@@ -3,7 +3,6 @@ import "@testing-library/jest-dom/vitest"
 import { render, screen, fireEvent, cleanup } from "@testing-library/react"
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import { PlayPage } from "./play-page"
-import { LEVELS } from "@/play/levels"
 
 describe("PlayPage end-to-end integration", () => {
   beforeEach(() => {
